@@ -29,7 +29,7 @@
 
         // 2. ĐẶT MÁY QUAY (Camera)
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 2, 5); // Đặt góc máy cao lên một chút nhìn cho rõ
+        camera.position.set(-4, 5, 15);
 
         // 3. XUẤT HÌNH (Renderer)
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -47,12 +47,15 @@
         // 5. THÊM TƯƠNG TÁC CHUỘT
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
+        controls.target.set(-4, 1, 0); 
 
         // Trục tọa độ trợ giúp (Đỏ = X, Xanh lá = Y, Xanh dương = Z) để bạn biết model đang nằm đâu
         //const axesHelper = new THREE.AxesHelper(5);
         //scene.add(axesHelper);
 
-        // 5.5. TỰ CHẾ PHÒNG COZY (Rộng 6, Dài 10, Cao 2.5)
+        // 5.5. TỰ CHẾ PHÒNG BI A (Rộng 6, Dài 10, Cao 2.5)
+        const billiardRoomGroup = new THREE.Group();
+        scene.add(billiardRoomGroup);
                 // 1. Tạo bộ tải ảnh nền
         const textureLoader = new THREE.TextureLoader();
         const woodTexture = textureLoader.load('wood.jpg'); // Gọi file ảnh wood.jpg đứng cạnh index.html
@@ -76,21 +79,21 @@
         const floor = new THREE.Mesh(floorGeo, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = 0; 
-        scene.add(floor);
+        billiardRoomGroup.add(floor);
 
         // 2. Tường sau (Rộng 6, Cao 2.5. Đẩy lùi về phía sau z = -5)
         const backWallGeo = new THREE.PlaneGeometry(6, 2.5);
         const backWall = new THREE.Mesh(backWallGeo, wallMaterial);
         // Vì tường cao 2.5 nên phải nâng y lên một nửa (1.25) để đáy tường chạm đúng sàn y = 0
         backWall.position.set(0, 1.25, -5); 
-        scene.add(backWall);
+        billiardRoomGroup.add(backWall);
 
         // 3. Tường bên trái (Rộng 6, Cao 2.5. Đẩy sang trái x = -3)
         const leftWallGeo = new THREE.PlaneGeometry(10, 2.5);
         const leftWall = new THREE.Mesh(leftWallGeo, wallMaterial);
         leftWall.rotation.y = Math.PI / 2;
         leftWall.position.set(-3, 1.25, 0); 
-        scene.add(leftWall);
+        billiardRoomGroup.add(leftWall);
 
         // 4. Tường trước (Rộng 6, Cao 2.5. Đặt ở rìa trước z = 5)
         const frontWallGeo = new THREE.PlaneGeometry(6, 2.5);
@@ -102,9 +105,9 @@
         // SỬA HIỂN THỊ: Xoay 180 độ quanh trục Y để lật mặt đỏ vào trong phòng
         frontWall.rotation.y = Math.PI; 
         
-        scene.add(frontWall);
+        billiardRoomGroup.add(frontWall);
 
- // =================================================================
+        // =================================================================
         // CẬP NHẬT: TRẦN GIẬT CẤP ĐỔI MÀU KEM/BE + KHỬ ĐỐM SÁNG + TĂNG SÁNG VIỀN
         // =================================================================
         
@@ -125,7 +128,7 @@
         const topCeiling = new THREE.Mesh(topCeilingGeo, innerCeilingMat); 
         topCeiling.rotation.x = Math.PI / 2;
         topCeiling.position.set(0, 2.6, 0); 
-        scene.add(topCeiling);
+        billiardRoomGroup.add(topCeiling);
 
         // 2. 4 KHỐI HỘP HẠ CẤP XUNG QUANH RÌA (Giữ màu trắng thạch cao)
         const frameThickness = 0.15;
@@ -133,22 +136,22 @@
         // Khung hạ cấp bên Trái
         const leftBox = new THREE.Mesh(new THREE.BoxGeometry(1, frameThickness, 10), outerCeilingMat);
         leftBox.position.set(-2.5, 2.45, 0);
-        scene.add(leftBox);
+        billiardRoomGroup.add(leftBox);
 
         // Khung hạ cấp bên Phải
         const rightBox = new THREE.Mesh(new THREE.BoxGeometry(1, frameThickness, 10), outerCeilingMat);
         rightBox.position.set(2.5, 2.45, 0);
-        scene.add(rightBox);
+        billiardRoomGroup.add(rightBox);
 
         // Khung hạ cấp phía Sau
         const backBox = new THREE.Mesh(new THREE.BoxGeometry(4, frameThickness, 1), outerCeilingMat);
         backBox.position.set(0, 2.45, -4.5);
-        scene.add(backBox);
+        billiardRoomGroup.add(backBox);
 
         // Khung hạ cấp phía Trước
         const frontBox = new THREE.Mesh(new THREE.BoxGeometry(4, frameThickness, 1), outerCeilingMat);
         frontBox.position.set(0, 2.45, 4.5);
-        scene.add(frontBox);
+        billiardRoomGroup.add(frontBox);
 
 
         // 3. TĂNG SÁNG VIỀN THẠCH CAO (DẢI ĐÈN LED NỔI BẬT)
@@ -161,19 +164,19 @@
 
         const ledLeft = new THREE.Mesh(ledLongGeo, ledMaterial);
         ledLeft.position.set(-1.98, 2.53, 0); 
-        scene.add(ledLeft);
+        billiardRoomGroup.add(ledLeft);
 
         const ledRight = new THREE.Mesh(ledLongGeo, ledMaterial);
         ledRight.position.set(1.98, 2.53, 0); 
-        scene.add(ledRight);
+        billiardRoomGroup.add(ledRight);
 
         const ledBack = new THREE.Mesh(ledShortGeo, ledMaterial);
         ledBack.position.set(0, 2.53, -3.98); 
-        scene.add(ledBack);
+        billiardRoomGroup.add(ledBack);
 
         const ledFront = new THREE.Mesh(ledShortGeo, ledMaterial);
         ledFront.position.set(0, 2.53, 3.98); 
-        scene.add(ledFront);
+        billiardRoomGroup.add(ledFront);
 
        // =================================================================
         // 6. GỌI DIỄN VIÊN (LOAD CẢ USAGI LẪN BÀN BI-A)
@@ -189,7 +192,7 @@
                 // Dịch Usagi sang bên phải và đứng trên sàn (Y = 1) để ngắm bàn
                 usagi.position.set(0, 1, 2); 
                 usagi.rotation.y = Math.PI;
-                scene.add(usagi);
+                billiardRoomGroup.add(usagi);
                 console.log("Đã load xong Usagi thành công!");
             },
             undefined,
@@ -223,7 +226,7 @@ loader.load(
         });
 
         // 1. Đưa bàn bi-a vào không gian
-        scene.add(table);
+        billiardRoomGroup.add(table);
 
         // =========================================================
         // 2. TẠO TẤM ẢNH GẦM BÀN VÀ GẮN CHẶT VÀO BÀN
@@ -300,7 +303,7 @@ table.add(bottomMesh);
                     // Nếu sau khi lưu vẫn thấy to hoặc quá bé, bạn tăng/giảm đều cả 3 số này nhé (ví dụ: 0.2 hoặc 0.4)
                     columnClone.scale.set(0.3, 0.3, 0.3); 
 
-                    scene.add(columnClone);
+                    billiardRoomGroup.add(columnClone);
                 });
 
                 console.log("Đã cắm xong 4 cột trụ vừa vặn vào phòng 6x10!");
@@ -323,7 +326,7 @@ table.add(bottomMesh);
                 // MẸO SỬA KÍCH THƯỚC: Nếu đèn quá to hoặc quá nhỏ, bạn chỉnh con số ở đây nhé
                 chandelier.scale.set(0.03, 0.03, 0.03);
 
-                scene.add(chandelier);
+                billiardRoomGroup.add(chandelier);
 
                 // HOÀNG GIA ĐỔ SÁNG: Thêm một ngọn đèn PointLight ngay tại tâm chiếc đèn chùm
                 // Tham số: (Màu sắc vàng ấm, Cường độ sáng, Khoảng cách ánh sáng tới được)
@@ -332,7 +335,7 @@ table.add(bottomMesh);
                 
                 // Bật đổ bóng cho ngọn đèn này nếu muốn xịn hơn (tùy chọn)
                 lampLight.castShadow = true; 
-                scene.add(lampLight);
+                billiardRoomGroup.add(lampLight);
 
                 // Thêm một khối cầu nhỏ phát sáng mô phỏng bóng đèn (Nếu mô hình gốc của bạn không tự sáng)
                 // chandelier.traverse((child) => {
@@ -423,7 +426,7 @@ table.add(bottomMesh);
         rackGroup.rotation.y = Math.PI / 2;
         rackGroup.scale.set(1.5, 1.5, 1.5); // Kích thước gốc đã vừa vặn, nếu muốn to hơn hoặc nhỏ hơn thì chỉnh con số này nhé (ví dụ: 0.8 hoặc 1.2)
 
-        scene.add(rackGroup);
+        billiardRoomGroup.add(rackGroup);
 
         // =================================================================
         // BƯỚC 6.6: LOAD SOFA MỚI + ÉP MÀU TRẮNG TINH KHÔI (IVORY WHITE)
@@ -447,7 +450,7 @@ table.add(bottomMesh);
 
         smallTableGroup.position.set(0, 0, -4.2);
         smallTableGroup.scale.set(1.5, 1.5, 1.5); // Tăng kích thước lên nếu thấy bàn nhỏ quá so với ghế
-        scene.add(smallTableGroup);
+        billiardRoomGroup.add(smallTableGroup);
 
 
         // 2. LOAD FILE SOFA MỚI VÀ TẨY SẠCH MAP GỐC ĐỂ ÉP TRẮNG TINH KHÔI
@@ -480,14 +483,14 @@ table.add(bottomMesh);
                 leftSofa.position.set(-1.5, 0, -4.2);
                 leftSofa.rotation.y = 0; 
                 leftSofa.scale.set(1.5, 1.5, 1.5); // Tăng kích thước lên nếu thấy ghế nhỏ quá so với bàn
-                scene.add(leftSofa);
+                billiardRoomGroup.add(leftSofa);
 
                 // --- GHẾ TẠO BÊN PHẢI BÀN (X = 1.2) ---
                 const rightSofa = baseSofa.clone();
                 rightSofa.position.set(1.5, 0, -4.2);
                 rightSofa.rotation.y = 0; 
                 rightSofa.scale.set(1.5, 1.5, 1.5); 
-                scene.add(rightSofa);
+                billiardRoomGroup.add(rightSofa);
 
                 console.log("Đã kích hoạt chiêu tẩy map, ghế đã trắng muốt!");
             },
@@ -513,7 +516,7 @@ table.add(bottomMesh);
                 // bạn hãy bỏ hai dấu gạch chéo ở dòng dưới và tinh chỉnh tỉ lệ (ví dụ: 0.1 hoặc 0.5)
                 // fridge.scale.set(1, 1, 1);
 
-                scene.add(fridge);
+                billiardRoomGroup.add(fridge);
                 console.log("Đã kê tủ nước vào góc phòng giữa sofa và giá gậy!");
             },
             undefined,
@@ -537,7 +540,7 @@ table.add(bottomMesh);
                 // nếu thấy bé khổng lồ bằng cả cái bàn, hãy bật dòng dưới này lên để thu nhỏ lại nhé (ví dụ: 0.1 hoặc 0.3)
                 chiikawa.scale.set(0.3, 0.45, 0.4);
 
-                scene.add(chiikawa);
+                billiardRoomGroup.add(chiikawa);
                 console.log("Chiikawa đã vào vị trí, đứng cực kỳ thoáng đãng!");
             },
             undefined,
@@ -567,7 +570,7 @@ table.add(bottomMesh);
         // XOAY HƯỚNG: Quay mặt có ảnh tủ rượu vào trong phòng bi-a
         wineCabinet2D.rotation.y = Math.PI; 
 
-        scene.add(wineCabinet2D);
+        billiardRoomGroup.add(wineCabinet2D);
         console.log("Đã kích hoạt MeshBasicMaterial, tủ rượu tự tỏa sáng tự nhiên!");
 
         // =================================================================
@@ -660,7 +663,7 @@ table.add(bottomMesh);
         // Xoay góc -90 độ quanh trục Y để mặt bọc da quay vào trong lòng phòng bi-a
         doorGroup.rotation.y = -Math.PI;
 
-        scene.add(doorGroup);
+        billiardRoomGroup.add(doorGroup);
         // =================================================================
         // BƯỚC 6.12: LOAD ĐIỀU HÒA (AIR CONDITIONER) BẢN GLB ĐÃ CONVERT
         // =================================================================
@@ -681,7 +684,7 @@ table.add(bottomMesh);
                 // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
                 // airConditioner.scale.set(1, 1, 1);
 
-                scene.add(airConditioner);
+                billiardRoomGroup.add(airConditioner);
                 console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
             },
             undefined,
@@ -707,7 +710,7 @@ table.add(bottomMesh);
                 // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
                 // airConditioner.scale.set(1, 1, 1);
 
-                scene.add(drawer);
+                billiardRoomGroup.add(drawer);
                 console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
             },
             undefined,
@@ -733,7 +736,7 @@ table.add(bottomMesh);
                 // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
                 // airConditioner.scale.set(1, 1, 1);
 
-                scene.add(minecraft);
+                billiardRoomGroup.add(minecraft);
                 console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
             },
             undefined,
@@ -757,7 +760,7 @@ table.add(bottomMesh);
                 // bạn hãy bỏ hai dấu gạch chéo ở dòng dưới và tinh chỉnh tỉ lệ (ví dụ: 0.1 hoặc 0.5)
                 plant.scale.set(1, 1.2, 1);
 
-                scene.add(plant);
+                billiardRoomGroup.add(plant);
                 console.log("Đã kê cây!");
             },
             undefined,
@@ -779,7 +782,7 @@ table.add(bottomMesh);
                 hachiware.rotation.y = Math.PI/2;
                 hachiware.scale.set(1.1, 1.5, 1.3);
 
-                scene.add(hachiware);
+                billiardRoomGroup.add(hachiware);
                 console.log("Đã kê tủ nước vào góc phòng giữa sofa và giá gậy!");
             },
             undefined,
@@ -809,7 +812,7 @@ table.add(bottomMesh);
         photoMesh.position.set(-2.79, 1.5, 3);
         photoMesh.rotation.y = 3*Math.PI/2;
         photoMesh.rotation.z = Math.PI;
-        scene.add(photoMesh);
+        billiardRoomGroup.add(photoMesh);
 
         // 3. LOAD KHUNG TRANH 3D LÀM BỆ ĐỠ PHÍA SAU
         loader.load(
@@ -822,7 +825,7 @@ table.add(bottomMesh);
                 frame.rotation.y = 0; 
                 frame.scale.set(0.7, 0.7, 0.7); 
 
-                scene.add(frame);
+                billiardRoomGroup.add(frame);
                 console.log("Ảo thuật dán đè thành công! Tranh mới đã lên khung mượt mà.");
             },
             undefined,
@@ -830,7 +833,25 @@ table.add(bottomMesh);
                 console.error("Lỗi tải khung tranh: ", error);
             }
         );
-        // ===============================
+        // ========================
+        // BƯỚC 6.17: LOAD GHẾ ĐẨU
+        //=========================
+        loader.load(
+            'stool.glb',
+            function (gltf) {
+                const stool = gltf.scene;
+                stool.position.set(-2.5, 0, 4.5);
+                stool.rotation.y = Math.PI/2;
+                stool.scale.set(1, 1, 1);
+
+                billiardRoomGroup.add(stool);
+                console.log("Ghế đẩu thành công!");
+            },
+            undefined,
+            function (error) {
+                console.error("Lỗi ghế đẩu: ", error);
+            }
+        );
 
         // 7. VÒNG LẶP RENDER
         function animate() {
