@@ -18,6 +18,7 @@
 </head>
 <body>
     <script type="module">
+        // Bây giờ import kiểu này trình duyệt sẽ hiểu 100%
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -47,18 +48,18 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        // Trục tọa độ trợ giúp (Đỏ = X, Xanh lá = Y, Xanh dương = Z) để biết model đang nằm đâu
+        // Trục tọa độ trợ giúp (Đỏ = X, Xanh lá = Y, Xanh dương = Z) để bạn biết model đang nằm đâu
         //const axesHelper = new THREE.AxesHelper(5);
         //scene.add(axesHelper);
 
         // 5.5. TỰ CHẾ PHÒNG COZY (Rộng 6, Dài 10, Cao 2.5)
-        // 1. Tạo bộ tải ảnh nền
+                // 1. Tạo bộ tải ảnh nền
         const textureLoader = new THREE.TextureLoader();
-        const woodTexture = textureLoader.load('wood.jpg'); // Gọi file ảnh wood.jpg
+        const woodTexture = textureLoader.load('wood.jpg'); // Gọi file ảnh wood.jpg đứng cạnh index.html
 
         const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x9b2242, roughness: 0.8 });
         const floorMaterial = new THREE.MeshStandardMaterial({ 
-            map: woodTexture, // 3. Thay đổi chất liệu sàn: Đổi từ dùng thuộc tính màu (color) sang thuộc tính ảnh (map)
+            map: woodTexture, 
             roughness: 0.3 // Giảm độ nhám xuống một chút để sàn gỗ có độ bóng nhẹ hắt ánh sáng
         });
         const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0xfcf4d7, roughness: 0.9 }); // Màu trần
@@ -68,52 +69,58 @@
         woodTexture.wrapT = THREE.RepeatWrapping;
         woodTexture.repeat.set(3, 3); // Càng tăng số này thì các thanh gỗ càng nhỏ lại và lặp lại nhiều hơn
 
-        // 3. Sàn nhà
+        // 3. Thay đổi chất liệu sàn: Đổi từ dùng thuộc tính màu (color) sang thuộc tính ảnh (map)
+
+        // 1. Sàn nhà (Thu nhỏ từ 20 xuống 6)
         const floorGeo = new THREE.PlaneGeometry(6, 10);
         const floor = new THREE.Mesh(floorGeo, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = 0; 
         scene.add(floor);
 
-        // 4. Tường sau
+        // 2. Tường sau (Rộng 6, Cao 2.5. Đẩy lùi về phía sau z = -5)
         const backWallGeo = new THREE.PlaneGeometry(6, 2.5);
         const backWall = new THREE.Mesh(backWallGeo, wallMaterial);
         // Vì tường cao 2.5 nên phải nâng y lên một nửa (1.25) để đáy tường chạm đúng sàn y = 0
         backWall.position.set(0, 1.25, -5); 
         scene.add(backWall);
 
-        // 5. Tường bên trái
+        // 3. Tường bên trái (Rộng 6, Cao 2.5. Đẩy sang trái x = -3)
         const leftWallGeo = new THREE.PlaneGeometry(10, 2.5);
         const leftWall = new THREE.Mesh(leftWallGeo, wallMaterial);
         leftWall.rotation.y = Math.PI / 2;
         leftWall.position.set(-3, 1.25, 0); 
         scene.add(leftWall);
 
-        // 4. Tường trước
+        // 4. Tường trước (Rộng 6, Cao 2.5. Đặt ở rìa trước z = 5)
         const frontWallGeo = new THREE.PlaneGeometry(6, 2.5);
         const frontWall = new THREE.Mesh(frontWallGeo, wallMaterial);
-        frontWall.position.set(0, 1.25, 5);
+        
+        // SỬA TỌA ĐỘ: Đặt đúng rìa sàn (z = 5)
+        frontWall.position.set(0, 1.25, 5); 
+        
+        // SỬA HIỂN THỊ: Xoay 180 độ quanh trục Y để lật mặt đỏ vào trong phòng
         frontWall.rotation.y = Math.PI; 
+        
         scene.add(frontWall);
 
-        // 5. Trần nhà
-        // ==========================================================================
-        // CẬP NHẬT TRẦN THẠCH CAO ĐỔI MÀU KEM/BE CHẠY ĐÈN VIỀN + KHỬ ĐỐM SÁNG THỪA
-        // ==========================================================================
+ // =================================================================
+        // CẬP NHẬT: TRẦN GIẬT CẤP ĐỔI MÀU KEM/BE + KHỬ ĐỐM SÁNG + TĂNG SÁNG VIỀN
+        // =================================================================
         
-        // Chất liệu 1: Màu trắng thạch cao cho phần khung xung quanh
+        // Chất liệu 1: Màu trắng thạch cao sạch sẽ cho phần khung hạ cấp xung quanh
         const outerCeilingMat = new THREE.MeshStandardMaterial({ 
             color: 0xefefef, 
             roughness: 0.6 
         });
 
-        // Chất liệu 2: Màu kem cho tấm hình chữ nhật lõm bên trong
+        // Chất liệu 2: MÀU KEM/BE HOÀNG GIA ĐẬM ĐÀ cho tấm hình chữ nhật lõm bên trong
         const innerCeilingMat = new THREE.MeshStandardMaterial({ 
-            color: 0xeedebf,
+            color: 0xeedebf, // Mã màu kem/be lên đèn cực sang
             roughness: 0.5 
         });
 
-        // 1. TẤM TRẦN NỀN TRUNG TÂM 
+        // 1. TẤM TRẦN NỀN TRUNG TÂM (Áp dụng chất liệu màu kem/be mới)
         const topCeilingGeo = new THREE.PlaneGeometry(4, 8);
         const topCeiling = new THREE.Mesh(topCeilingGeo, innerCeilingMat); 
         topCeiling.rotation.x = Math.PI / 2;
@@ -143,7 +150,10 @@
         frontBox.position.set(0, 2.45, 4.5);
         scene.add(frontBox);
 
-        // tăng sáng viền
+
+        // 3. TĂNG SÁNG VIỀN THẠCH CAO (DẢI ĐÈN LED NỔI BẬT)
+        // Thay đổi màu từ vàng nhạt sang màu TRẮNG SÁNG TUYỆT ĐỐI (0xffffff) 
+        // Vì là MeshBasicMaterial nên nó sẽ tự phát phát quang rực rỡ nhất mà không bị đổ bóng che mờ
         const ledMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
 
         const ledLongGeo = new THREE.BoxGeometry(0.02, 0.02, 8);
@@ -166,69 +176,115 @@
         scene.add(ledFront);
 
        // =================================================================
-        // 6. GỌI OBJECT
+        // 6. GỌI DIỄN VIÊN (LOAD CẢ USAGI LẪN BÀN BI-A)
         // =================================================================
         const loader = new GLTFLoader();
 
-        // --- 6.1. USAGI ---
+        // --- 6.1. LOAD USAGI ---
         loader.load(
             'model.glb', 
             function (gltf) {
                 const usagi = gltf.scene;
+                
+                // Dịch Usagi sang bên phải và đứng trên sàn (Y = 1) để ngắm bàn
                 usagi.position.set(0, 1, 2); 
                 usagi.rotation.y = Math.PI;
                 scene.add(usagi);
-                console.log("Usagi thành công!");
+                console.log("Đã load xong Usagi thành công!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi Usagi: ", error);
+                console.error("Lỗi load Usagi: ", error);
             }
         );
 
-        // --- 6.2. LOAD BÀN BI-A ---
-        // UPDATE: ĐÃ FIX ĐỔI MÀU & GIẤU GẬY, TẨY MÀU CŨ ---
-        loader.load(
-            'billiard_table.glb',
-            function (gltf) {
-                const table = gltf.scene;
-                table.position.set(0, 0, 0); 
-                table.rotation.y = 3 * Math.PI / 2;
+   // --- 6.2. LOAD BÀN BI-A ---
+loader.load(
+    'billiard_table.glb',
+    function (gltf) {
+        const table = gltf.scene;
+        table.position.set(0, 0, 0); 
+        table.rotation.y = 3 * Math.PI / 2;
 
-                table.traverse(function (child) {
-                    if (child.isMesh) {
-                        
-                        // Khớp đúng tên mặt bàn 
-                        if (child.name === 'Billiards_GreenBoard_Material_#25_0') {
-                        
-                            child.material.map = null; // Xóa sạch ảnh thảm xanh gốc để không bị trộn màu bẩn
-                            child.material.color.setHex(0x00868b); 
-                            
-                            // Báo cho Three.js biết là vật liệu đã thay đổi kết cấu để nó vẽ lại
-                            child.material.needsUpdate = true; 
-                        }
+        table.traverse(function (child) {
+            if (child.isMesh) {
+                // Xử lý mặt bàn xanh
+                if (child.name === 'Billiards_GreenBoard_Material_#25_0') {
+                    child.material.map = null; 
+                    child.material.color.setHex(0x00868b); 
+                    child.material.needsUpdate = true; 
+                }
 
-                        if (child.name.includes('Billiard_Stick')) {
-                            child.visible = false; 
-                        }
-                    }
-                });
-
-                scene.add(table);
-                console.log("Bàn thành công!");
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi bàn:", error);
+                // Ẩn gậy bi-a
+                if (child.name.includes('Billiard_Stick')) {
+                    child.visible = false; 
+                }
             }
-        );
-        // --- 6.3. LOAD CỘT NHÀ KIỂU ÂU VÀ ĐẶT VÀO 4 GÓC PHÒNG (6x10) ---
+        });
+
+        // 1. Đưa bàn bi-a vào không gian
+        scene.add(table);
+
+        // =========================================================
+        // 2. TẠO TẤM ẢNH GẦM BÀN VÀ GẮN CHẶT VÀO BÀN
+        // =========================================================
+const bottomGeo = new THREE.PlaneGeometry(2.6, 1.35); 
+
+// Bước 2: Nạp tài nguyên tĩnh (Bảo toàn tỷ lệ khung hình gốc)
+const localTextureLoader = new THREE.TextureLoader();
+const bottomTexture = localTextureLoader.load(
+    'wreneven.jpg',
+    function(texture) {
+        // Cân bằng phổ màu chuẩn của Three.js
+        texture.colorSpace = THREE.SRGBColorSpace;
+        
+        // Căn tâm tọa độ UV phục vụ cho các phép nội suy nếu cần
+        texture.center.set(0.5, 0.5);
+        
+        // Loại bỏ hoàn toàn phép xoay 90 độ (Math.PI / 2) để ảnh không bị cắt xén
+        texture.rotation = 0; 
+        
+        console.log("Xác nhận: Tiến trình đồng bộ tỷ lệ ảnh (Landscape) với mặt phẳng hoàn tất.");
+    },
+    undefined,
+    function(error) {
+        console.error("Ngoại lệ tải tài nguyên tĩnh.", error);
+    }
+);
+
+// Bước 3: Định nghĩa đặc tính bề mặt quang học
+const bottomMat = new THREE.MeshBasicMaterial({ 
+    map: bottomTexture, 
+    color: 0xffffff, 
+    side: THREE.DoubleSide 
+});
+
+// Bước 4: Khởi tạo thực thể không gian (Mesh) và can thiệp ma trận xoay
+const bottomMesh = new THREE.Mesh(bottomGeo, bottomMat);
+
+// Lật mặt phẳng nằm ngang song song với trục XZ của không gian
+bottomMesh.rotation.x = Math.PI / 2;
+bottomMesh.rotation.z = Math.PI;
+
+// Định vị cao độ cục bộ (Trục Y)
+bottomMesh.position.set(0, 0.6, 0); 
+
+// Bước 5: Tích hợp vào hệ quy chiếu của mô hình bàn
+table.add(bottomMesh);
+        console.log("Đã gắn thành công ảnh vào gầm bàn!");
+    },
+    undefined,
+    function (error) {
+        console.error("Lỗi: ", error);
+    }
+);
+        // --- 6.3. LOAD CỘT NHÀ KIỂU ÂU VÀ ĐẶT VÀO 4 GÓC PHÒNG MỚI (6x10) ---
         loader.load(
             'column.glb', 
             function (gltf) {
                 const baseColumn = gltf.scene;
 
-                // Tọa độ 4 góc căn chỉnh cho đẹp
+                // Tọa độ 4 góc mới tính theo phòng rộng 6, dài 10 (đã thụt lề để tránh lún tường)
                 const cornerPositions = [
                     { x: -2.75, z: -4.9 }, // Góc Sau - Trái
                     { x: 2.75, z: -4.9 },  // Góc Sau - Phải
@@ -240,50 +296,66 @@
                     const columnClone = baseColumn.clone();
                     columnClone.position.set(pos.x, 0, pos.z); 
 
-                    // SỬA LỖI KHỔNG LỒ: Thu nhỏ cái cột lại 
+                    // SỬA LỖI KHỔNG LỒ: Thu nhỏ cái cột lại bằng 25% kích thước ban đầu
+                    // Nếu sau khi lưu vẫn thấy to hoặc quá bé, bạn tăng/giảm đều cả 3 số này nhé (ví dụ: 0.2 hoặc 0.4)
                     columnClone.scale.set(0.3, 0.3, 0.3); 
 
                     scene.add(columnClone);
                 });
 
-                console.log("Cột thành công!");
+                console.log("Đã cắm xong 4 cột trụ vừa vặn vào phòng 6x10!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi cột: ", error);
+                console.error("Lỗi tải cột: ", error);
             }
         );
-        // --- 6.4. LOAD CHANDELIER VÀ TẠO NGUỒN SÁNG TỎA ---
+        // --- 6.4. LOAD ĐÈN CHÙM (CHANDELIER) VÀ TẠO NGUỒN SÁNG TỎA ---
         loader.load(
-            'chandelier.glb',
+            'chandelier.glb', // Tên chính xác file đèn chùm của bạn
             function (gltf) {
                 const chandelier = gltf.scene;
+
+                // Đặt đèn ở chính giữa phòng (X=0, Z=0) và sát trần nhà (Y=2.5)
+                // Nếu đèn có dây xích dài sẵn, bạn có thể hạ Y xuống một chút (ví dụ 2.3 hoặc 2.2)
                 chandelier.position.set(0, 2.5, 0);
+
+                // MẸO SỬA KÍCH THƯỚC: Nếu đèn quá to hoặc quá nhỏ, bạn chỉnh con số ở đây nhé
                 chandelier.scale.set(0.03, 0.03, 0.03);
 
                 scene.add(chandelier);
 
-                // Thêm một nguồn sáng PointLight ngay tại tâm chiếc đèn chùm
+                // HOÀNG GIA ĐỔ SÁNG: Thêm một ngọn đèn PointLight ngay tại tâm chiếc đèn chùm
+                // Tham số: (Màu sắc vàng ấm, Cường độ sáng, Khoảng cách ánh sáng tới được)
                 const lampLight = new THREE.PointLight(0xffdfa9, 3, 8); 
                 lampLight.position.set(0, 2.3, 0); // Đặt thấp hơn trần một chút để ánh sáng tỏa ra đẹp hơn
                 
-                // Bật đổ bóng cho ngọn đèn
+                // Bật đổ bóng cho ngọn đèn này nếu muốn xịn hơn (tùy chọn)
                 lampLight.castShadow = true; 
                 scene.add(lampLight);
 
-                console.log("Đèn thành công!");
+                // Thêm một khối cầu nhỏ phát sáng mô phỏng bóng đèn (Nếu mô hình gốc của bạn không tự sáng)
+                // chandelier.traverse((child) => {
+                //     if (child.isMesh && child.name.includes('glass')) { // hoặc tên mesh chứa bóng đèn
+                //         child.material.emissive = new THREE.Color(0xffffff);
+                //         child.material.emissiveIntensity = 1;
+                //     }
+                // });
+
+                console.log("Đã treo đèn chùm và bật công tắc điện!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi đèn: ", error);
+                console.error("Lỗi treo đèn rồi sếp ơi: ", error);
             }
         );
-        // ====================================
-        // BƯỚC 6.5: TỰ CHẾ GIÁ ĐỂ GẬY BI-A 3D
-        // ====================================
+        // =================================================================
+        // BƯỚC 6.5: TỰ CHẾ GIÁ ĐỂ GẬY BI-A 3D SANG CHẢNH (GẮN SÁT TƯỜNG)
+        // =================================================================
         const rackGroup = new THREE.Group();
 
         // 1. Định nghĩa chất liệu màu sắc
+        // Màu gỗ sẫm cổ điển cho khung giá đỡ (tiệp màu với thành bàn bi-a)
         const rackWoodMat = new THREE.MeshStandardMaterial({ 
             color: 0x2b1810, 
             roughness: 0.5 
@@ -293,7 +365,7 @@
         const cueHandleMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7 });
         const cueTipMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.9 });
 
-        // 2. LẮP RÁP KHUNG GIÁ ĐỠ ĐỨNG
+        // 2. LẮP RÁP KHUNG GIÁ ĐỠ ĐỨNG (Y hệt kết cấu ảnh mẫu của bạn)
         // Tấm đế nằm sát sàn nhà
         const baseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.18), rackWoodMat);
         baseMesh.position.y = 0.02; // Nâng lên một nửa chiều cao để nằm khít trên sàn y=0
@@ -310,12 +382,13 @@
         rackGroup.add(topLipMesh);
 
         // 3. TỰ ĐỘNG CHẾ TẠO 4 CÂY GẬY BI-A XẾP VÀO GIÁ
-        // xếp 4 cây gậy dàn hàng ngang đều nhau trên giá đỡ
+        // Tọa độ X để xếp 4 cây gậy dàn hàng ngang đều nhau trên giá đỡ
         const cueSlotsX = [-0.15, -0.05, 0.05, 0.15];
 
         cueSlotsX.forEach(function(xPos) {
             const singleCue = new THREE.Group();
 
+            // Thân gậy thon dài (Dùng hình trụ CylinderGeometry)
             // Tham số: (Bán kính đỉnh, Bán kính đáy, Chiều cao, Số mặt cắt)
             const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.012, 1.1, 8), cueShaftMat);
             shaft.position.y = 0.55; // Tâm khối trụ nằm ở giữa vách dọc
@@ -334,27 +407,29 @@
             // Đặt cây gậy vừa chế vào đúng khe cắm trên giá đỡ
             singleCue.position.set(xPos, 0.04, -0.03);
             
-            // Độ nghiêng ngẫu nhiên
+            // Thêm một chút độ nghiêng ngẫu nhiên siêu nhỏ cho thật, nhìn đỡ bị đơ cứng
             singleCue.rotation.z = (Math.random() - 0.5) * 0.015;
             singleCue.rotation.x = (Math.random() - 0.5) * 0.015;
 
             rackGroup.add(singleCue);
         });
 
-        // 4. ĐỊNH VỊ CẢ CỤM GIÁ GẬY ÉP SÁT VÀO VÁCH TƯỜNG 
+        // 4. ĐỊNH VỊ CẢ CỤM GIÁ GẬY ÉP SÁT VÀO VÁCH TƯỜNG PHÒNG 6x10
+        // Căn phòng rộng 6 (X từ -3 đến 3), vách tường trái nằm ở X = -3.
+        // Ta đặt cụm này ở X = -2.88 để lưng giá dựa khít vào vách, dịch lên phía trên một chút (Z = -1)
         rackGroup.position.set(-2.88, 0, 0);
         
         // Xoay góc 90 độ quanh trục Y để quay mặt vào phía trong bàn bi-a
         rackGroup.rotation.y = Math.PI / 2;
-        rackGroup.scale.set(1.5, 1.5, 1.5);
+        rackGroup.scale.set(1.5, 1.5, 1.5); // Kích thước gốc đã vừa vặn, nếu muốn to hơn hoặc nhỏ hơn thì chỉnh con số này nhé (ví dụ: 0.8 hoặc 1.2)
 
         scene.add(rackGroup);
 
-        // =================================
-        // BƯỚC 6.6: LOAD SOFA MỚI + ÉP MÀU
-        // =================================
+        // =================================================================
+        // BƯỚC 6.6: LOAD SOFA MỚI + ÉP MÀU TRẮNG TINH KHÔI (IVORY WHITE)
+        // =================================================================
         
-        // 1. TỰ CHẾ BÀN NHỎ TRÒN GIỮA 2 GHẾ 
+        // 1. TỰ CHẾ CHIẾC BÀN NHỎ TRÒN GIỮA 2 GHẾ (Giữ nguyên)
         const smallTableGroup = new THREE.Group();
         const tableWoodMat = new THREE.MeshStandardMaterial({ color: 0xc6ac8f, roughness: 0.4 });
         
@@ -371,24 +446,24 @@
         smallTableGroup.add(tableBase);
 
         smallTableGroup.position.set(0, 0, -4.2);
-        smallTableGroup.scale.set(1.5, 1.5, 1.5);
+        smallTableGroup.scale.set(1.5, 1.5, 1.5); // Tăng kích thước lên nếu thấy bàn nhỏ quá so với ghế
         scene.add(smallTableGroup);
 
 
-        // 2. LOAD FILE SOFA MỚI VÀ TẨY SẠCH MAP GỐC ĐỂ ÉP MÀU
+        // 2. LOAD FILE SOFA MỚI VÀ TẨY SẠCH MAP GỐC ĐỂ ÉP TRẮNG TINH KHÔI
         loader.load(
             'sofa.glb', 
             function (gltf) {
                 const baseSofa = gltf.scene;
 
-                // TẨY MAP Y HỆT BÀN BI-A
+                // TUYỆT CHIÊU TẨY MAP Y HỆT BÀN BI-A
                 baseSofa.traverse(function (child) {
                     if (child.isMesh && child.material) {
                         
                         // BƯỚC 1: Xoá bỏ hoàn toàn ảnh texture xám cũ để không bị trộn màu bẩn
                         child.material.map = null; 
                         
-                        // BƯỚC 2: Đổ màu
+                        // BƯỚC 2: Đổ màu trắng tuyệt đối (Snow White)
                         child.material.color.setHex(0xc6747e); 
                         
                         // BƯỚC 3: Cấu hình lại bề mặt cho mịn màng, nhìn giống nỉ thạch cao sang trọng
@@ -400,14 +475,14 @@
                     }
                 });
 
-                // --- GHẾ TẠO BÊN TRÁI BÀN ---
+                // --- GHẾ TẠO BÊN TRÁI BÀN (X = -1.2) ---
                 const leftSofa = baseSofa.clone();
                 leftSofa.position.set(-1.5, 0, -4.2);
                 leftSofa.rotation.y = 0; 
-                leftSofa.scale.set(1.5, 1.5, 1.5); 
+                leftSofa.scale.set(1.5, 1.5, 1.5); // Tăng kích thước lên nếu thấy ghế nhỏ quá so với bàn
                 scene.add(leftSofa);
 
-                // --- GHẾ TẠO BÊN PHẢI BÀN ---
+                // --- GHẾ TẠO BÊN PHẢI BÀN (X = 1.2) ---
                 const rightSofa = baseSofa.clone();
                 rightSofa.position.set(1.5, 0, -4.2);
                 rightSofa.rotation.y = 0; 
@@ -421,35 +496,47 @@
                 console.error("Lỗi load sofa: ", error);
             }
         );
-        //======================================
-        // BƯỚC 6.7. LOAD TỦ LẠNH VÀO GÓC PHÒNG 
-        //======================================
+        // --- 6.7. LOAD CÂY NƯỚC / TỦ LẠNH (WATER FRIDGE) VÀO GÓC PHÒNG ---
         loader.load(
-            'water_fridge.glb',
+            'water_fridge.glb', // Tên chính xác file tủ nước của bạn
             function (gltf) {
                 const fridge = gltf.scene;
+
+                // ĐẶT VÀO GÓC CHẾT: Sát tường trái (X = -2.5), nằm giữa giá gậy và sofa (Z = -3.2)
                 fridge.position.set(-2.5, 0, -3);
+
+                // XOAY HƯỚNG: Chếch một góc 45 độ (Math.PI / 4) hướng mặt ra giữa phòng 
+                // nhìn sẽ nghệ thuật và tự nhiên hơn là kê thẳng tuột vào tường
                 fridge.rotation.y = 0;
+
+                // MẸO SỬA KÍCH THƯỚC: Nếu cái tủ tải về quá khổng lồ hoặc bé tí teo,
+                // bạn hãy bỏ hai dấu gạch chéo ở dòng dưới và tinh chỉnh tỉ lệ (ví dụ: 0.1 hoặc 0.5)
                 // fridge.scale.set(1, 1, 1);
 
                 scene.add(fridge);
-                console.log("Tủ nước thành công!");
+                console.log("Đã kê tủ nước vào góc phòng giữa sofa và giá gậy!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi tủ nước: ", error);
+                console.error("Lỗi không load được tủ nước sếp ơi: ", error);
             }
         );
-        //=========================
-        // BƯỚC 6.8. LOAD CHIIKAWA 
-        //=========================
+        // --- 6.8. LOAD CHIIKAWA (ĐỨNG GIỮA TỦ NƯỚC VÀ GIÁ CƠ, CÁCH TƯỜNG) ---
         loader.load(
-            'chiikawa.glb',
+            'chiikawa.glb', // Đổi tên file tải từ Sketchfab của bạn thành chiikawa.glb
             function (gltf) {
                 const chiikawa = gltf.scene;
+
+                // ĐỊNH VỊ: Giữa tủ nước và giá cơ (Z = -2.1), cách xa tường trái (X = -1.8)
                 chiikawa.position.set(-1.5, 0.77, -1);
+
+                // XOAY HƯỚNG: Cho Chiikawa xoay mặt chếch về phía bàn bi-a để xem Usagi đánh bóng
                 chiikawa.rotation.y = Math.PI / 3; 
+
+                // MẸO SỬA KÍCH THƯỚC: Do model Chiikawa trên mạng đôi khi bị làm rất to,
+                // nếu thấy bé khổng lồ bằng cả cái bàn, hãy bật dòng dưới này lên để thu nhỏ lại nhé (ví dụ: 0.1 hoặc 0.3)
                 chiikawa.scale.set(0.3, 0.45, 0.4);
+
                 scene.add(chiikawa);
                 console.log("Chiikawa đã vào vị trí, đứng cực kỳ thoáng đãng!");
             },
@@ -458,34 +545,41 @@
                 console.error("Lỗi không dắt bé Chiikawa vào phòng được sếp ơi: ", error);
             }
         );
-        //=====================================================================
-        // BƯỚC 6.9: TỦ RƯỢU ÂM TƯỜNG 2D - BỎ QUA ĐÈN PHÒNG (MESHBASICMATERIAL)
-        //=====================================================================
+        // =================================================================
+        // CẬP NHẬT 6.10: TỦ RƯỢU ÂM TƯỜNG 2D - BỎ QUA ĐÈN PHÒNG (MESHBASICMATERIAL)
+        // =================================================================
+        // Gọi đúng file 'wine_cabin.jpg' bạn vừa tải về
         const cabinetTexture = textureLoader.load('wine_cabin.jpg'); 
+
+        // Giữ nguyên kích thước bề thế (Rộng 2.6m, Cao 2.0m)
         const cabinetGeo = new THREE.BoxGeometry(2.6, 2.4, 0.001);
         
-        // Sử dụng MeshBasicMaterial để lột bỏ hoàn toàn tác động của đèn scene do ảnh 2d đã có độ phản quang sẵn
+        // THẦN CHÚ: Sử dụng MeshBasicMaterial để lột bỏ hoàn toàn tác động của đèn scene
         const cabinetMat = new THREE.MeshBasicMaterial({
             map: cabinetTexture
         });
 
         const wineCabinet2D = new THREE.Mesh(cabinetGeo, cabinetMat);
+
+        // ĐỊNH VỊ: Ép sát sạt vào vách sau (Z = 4.95 để không bị lún hẳn ra sau tường Z = 5)
         wineCabinet2D.position.set(-1.3, 1.2, 4.99);
+
+        // XOAY HƯỚNG: Quay mặt có ảnh tủ rượu vào trong phòng bi-a
         wineCabinet2D.rotation.y = Math.PI; 
 
         scene.add(wineCabinet2D);
         console.log("Đã kích hoạt MeshBasicMaterial, tủ rượu tự tỏa sáng tự nhiên!");
 
-        // =====================================
-        // BƯỚC 6.10: TỰ CHẾ CỬA CÁCH ÂM BỌC DA
-        // =====================================
+        // =================================================================
+        // BƯỚC 6.11: TỰ CHẾ CỬA CÁCH ÂM BỌC DA MÚI RÚT (GẮN TƯỜNG PHẢI)
+        // =================================================================
         const doorGroup = new THREE.Group();
 
         // 1. ĐỊNH NGHĨA CHẤT LIỆU
-        const frameMat = new THREE.MeshStandardMaterial({ color: 0xe7c8a0, roughness: 0.5 }); // Khung cửa
-        const leatherMat = new THREE.MeshStandardMaterial({ color: 0xfaedcd, roughness: 0.85 }); // Đệm da nhám cao
-        const buttonMat = new THREE.MeshStandardMaterial({ color: 0xfaedcd, roughness: 0.6 }); // Nút
-        const handleMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 }); // Tay nắm kim loại
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0xe7c8a0, roughness: 0.5 }); // Khung cửa xám đen lì
+        const leatherMat = new THREE.MeshStandardMaterial({ color: 0xfaedcd, roughness: 0.85 }); // Đệm da xám đậm nhám cao để khử bóng giả
+        const buttonMat = new THREE.MeshStandardMaterial({ color: 0xfaedcd, roughness: 0.6 }); // Đinh khuy rút nút đen sẫm
+        const handleMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 }); // Tay nắm Inox sáng loáng
 
         // 2. PHẦN CÁNH CỬA TO (Chữ nhật lớn)
         const doorWidth = 1.0;
@@ -493,7 +587,7 @@
         const doorThickness = 0.05;
 
         const doorBase = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, doorHeight, doorThickness), frameMat);
-        doorBase.position.y = doorHeight / 2;
+        doorBase.position.y = doorHeight / 2; // Đáy cửa chạm khít sàn y=0
         doorGroup.add(doorBase);
 
         // 3. XẾP MÚI NỆM DA VUÔNG & ĐINH KHUY TRÒN
@@ -512,12 +606,12 @@
                 const xPos = -panelW / 2 + padW / 2 + (c * padW);
                 const yPos = (doorHeight - panelH) / 2 + padH / 2 + (r * padH);
 
-                // Trừ đi 0.005 ở kích thước hộp để tạo khe hở đổ bóng giữa các múi da
+                // MẸO: Trừ đi 0.005 ở kích thước hộp để tạo khe hở đổ bóng giữa các múi da
                 const leatherPad = new THREE.Mesh(
                     new THREE.BoxGeometry(padW - 0.005, padH - 0.005, 0.02), 
                     leatherMat
                 );
-                // Đẩy lồi ra phía trước bề mặt cánh cửa một chút
+                // Đẩy lồi ra phía trước bề mặt cánh cửa một chút (Z)
                 leatherPad.position.set(xPos, yPos, doorThickness / 2 + 0.01);
                 doorGroup.add(leatherPad);
             }
@@ -537,7 +631,7 @@
             }
         }
 
-        // 4. TỰ CHẾ TAY NẮM CỬA KIM LOẠI
+        // 4. TỰ CHẾ TAY NẮM CỬA KIM LOẠI (HÀNG TẬP THỂ HÌNH KHỐI)
         const handleGroup = new THREE.Group();
         
         // Tấm ốp khóa chữ nhật dài đằng sau tay nắm
@@ -559,110 +653,150 @@
         handleGroup.position.set(0.36, 1.0, doorThickness / 2 + 0.01);
         doorGroup.add(handleGroup);
 
+        // 5. ĐỊNH VỊ CỬA ÉP PHẲNG VÀO VÁCH TƯỜNG PHẢI COZY (X = 3)
+        // Đặt ở vị trí Z = 2.0 để khi vừa load trang, camera mặc định liếc sang phải là thấy ngay cửa ra vào
         doorGroup.position.set(1.3, 0, 4.99);
+        
+        // Xoay góc -90 độ quanh trục Y để mặt bọc da quay vào trong lòng phòng bi-a
         doorGroup.rotation.y = -Math.PI;
+
         scene.add(doorGroup);
-        // =========================
-        // BƯỚC 6.11: LOAD ĐIỀU HÒA 
-        // =========================
+        // =================================================================
+        // BƯỚC 6.12: LOAD ĐIỀU HÒA (AIR CONDITIONER) BẢN GLB ĐÃ CONVERT
+        // =================================================================
         loader.load(
-            'air_condition_daikin.glb',
+            'air_condition_daikin.glb', // Tên file đã convert nhúng sẵn texture của bạn
             function (gltf) {
                 const airConditioner = gltf.scene;
+
+                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
+                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
                 airConditioner.position.set(0, 2.1, -4.85);
+
+                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
+                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
                 airConditioner.rotation.y = 0; 
+
+                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
+                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
                 // airConditioner.scale.set(1, 1, 1);
 
                 scene.add(airConditioner);
-                console.log("Điều hòa thành công!");
+                console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi điều hòa: ", error);
+                console.error("Lỗi lắp đặt điều hòa: ", error);
             }
         );
-        //========================
-        // BƯỚC 6.12: LOAD TỦ KÉO
-        //========================
         loader.load(
-            'drawer.glb',
+            'drawer.glb', // Tên file đã convert nhúng sẵn texture của bạn
             function (gltf) {
                 const drawer = gltf.scene;
+
+                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
+                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
                 drawer.position.set(-2.8, 0.8, 1.5);
                 drawer.scale.set(0.0015,0.0015,0.0015);
-                drawer.rotation.y = 0;
+
+                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
+                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
+                drawer.rotation.y = 0; 
+
+                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
+                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
+                // airConditioner.scale.set(1, 1, 1);
+
                 scene.add(drawer);
-                console.log("Tủ kéo thành công!");
+                console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi tủ kéo: ", error);
+                console.error("Lỗi lắp đặt điều hòa: ", error);
             }
         );
-        //==========================
-        // BƯỚC 6.13: LOAD MÔ HÌNH
-        //==========================
         loader.load(
-            'minecraft.glb',
+            'minecraft.glb', // Tên file đã convert nhúng sẵn texture của bạn
             function (gltf) {
                 const minecraft = gltf.scene;
+
+                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
+                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
                 minecraft.position.set(-2.4, 0.95, 1.3);
                 minecraft.scale.set(0.35,0.35,0.35);
+
+                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
+                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
                 minecraft.rotation.y = 1.45*Math.PI; 
+
+                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
+                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
+                // airConditioner.scale.set(1, 1, 1);
+
                 scene.add(minecraft);
-                console.log("Mô hình thành công!");
+                console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi mô hình: ", error);
+                console.error("Lỗi lắp đặt điều hòa: ", error);
             }
         );
-        //=====================
-        // BƯỚC 6.14. LOAD CÂY
-        //=====================
+        // --- 6.12. LOAD CÂY CẠNH CÂY NƯỚC / TỦ LẠNH (WATER FRIDGE) ---
         loader.load(
             'plant.glb', 
             function (gltf) {
                 const plant = gltf.scene;
+
                 plant.position.set(-2.5, 0.5, -2.4);
+
+                // XOAY HƯỚNG: Chếch một góc 45 độ (Math.PI / 4) hướng mặt ra giữa phòng 
+                // nhìn sẽ nghệ thuật và tự nhiên hơn là kê thẳng tuột vào tường
                 plant.rotation.y = 0;
+
+                // MẸO SỬA KÍCH THƯỚC: Nếu cái tủ tải về quá khổng lồ hoặc bé tí teo,
+                // bạn hãy bỏ hai dấu gạch chéo ở dòng dưới và tinh chỉnh tỉ lệ (ví dụ: 0.1 hoặc 0.5)
                 plant.scale.set(1, 1.2, 1);
 
                 scene.add(plant);
-                console.log("Cây thành công!");
+                console.log("Đã kê cây!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi cây: ", error);
+                console.error("Lỗi không load được cayc sếp ơi: ", error);
             }
         );
-        //===========================
-        // BƯỚC 6.15: LOAD HACHIWARE
-        //===========================
+        // --- 6.7. LOAD CÂY NƯỚC / TỦ LẠNH (WATER FRIDGE) VÀO GÓC PHÒNG ---
         loader.load(
             'hachiware.glb',
             function (gltf) {
                 const hachiware = gltf.scene;
+
+                // ĐẶT VÀO GÓC CHẾT: Sát tường trái (X = -2.5), nằm giữa giá gậy và sofa (Z = -3.2)
                 hachiware.position.set(2, 0.73, 4);
+
+                // XOAY HƯỚNG: Chếch một góc 45 độ (Math.PI / 4) hướng mặt ra giữa phòng 
+                // nhìn sẽ nghệ thuật và tự nhiên hơn là kê thẳng tuột vào tường
                 hachiware.rotation.y = Math.PI/2;
                 hachiware.scale.set(1.1, 1.5, 1.3);
 
                 scene.add(hachiware);
-                console.log("Hachiware thành công!");
+                console.log("Đã kê tủ nước vào góc phòng giữa sofa và giá gậy!");
             },
             undefined,
             function (error) {
-                console.error("Lỗi Hachiware: ", error);
+                console.error("Lỗi không load được tủ nước sếp ơi: ", error);
             }
         );
-        // =====================================================
-        // BƯỚC 6.16: TREO KHUNG TRANH + DÂN ĐÈ ẢNH 2D LÊN TRÊN 
-        // ======================================================
-        // 1. Nạp ảnh
+        // =================================================================
+        // BƯỚC 6.13: TREO KHUNG TRANH + DÂN ĐÈ ẢNH 2D LÊN TRÊN (FIX LỖI CHUNG MESH)
+        // =================================================================
+        // 1. Nạp tấm ảnh mới của bạn
         const myPictureTex = textureLoader.load('Thang_Ngot.jpg');
         myPictureTex.flipY = false; 
 
         // 2. TẠO TẤM ẢNH PHẲNG 2D ĐỂ DÁN ĐÈ
+        // Kích thước ước lượng vừa khít lòng trong của khung (Rộng 0.48, Cao 0.6)
+        // Nếu sau khi lưu mà thấy ảnh bị tràn ra ngoài rìa gỗ, bạn chỉ cần giảm 2 số này xuống tí nhé
         const photoGeo = new THREE.PlaneGeometry(0.68, 0.9);
         const photoMat = new THREE.MeshBasicMaterial({ 
             map: myPictureTex,
@@ -670,7 +804,8 @@
         });
         const photoMesh = new THREE.Mesh(photoGeo, photoMat);
 
-        // ĐỊNH VỊ TẤM ẢNH
+        // ĐỊNH VỊ TẤM ẢNH: Trùng tọa độ với khung tranh nhưng nhích nhẹ trục Z ra ngoài (Z = -4.90)
+        // Mẹo nhích 0.02m này để tránh lỗi "Z-fighting" (hai mặt phẳng đè khít lên nhau gây rách hình)
         photoMesh.position.set(-2.79, 1.5, 3);
         photoMesh.rotation.y = 3*Math.PI/2;
         photoMesh.rotation.z = Math.PI;
@@ -681,35 +816,18 @@
             'picture_frame.glb', 
             function (gltf) {
                 const frame = gltf.scene;
+
+                // Nằm ngay sau tấm ảnh một chút (Z = -4.92)
                 frame.position.set(-2.8, 1.5, 3);
                 frame.rotation.y = 0; 
                 frame.scale.set(0.7, 0.7, 0.7); 
 
                 scene.add(frame);
-                console.log("Tranh thành công!");
+                console.log("Ảo thuật dán đè thành công! Tranh mới đã lên khung mượt mà.");
             },
             undefined,
             function (error) {
-                console.error("Lỗi khung tranh: ", error);
-            }
-        );
-        //=========================
-        // BƯỚC 6.17: LOAD GHẾ ĐẨU
-        //=========================
-        loader.load(
-            'stool.glb',
-            function (gltf) {
-                const stool = gltf.scene;
-                stool.position.set(-2.5, 0, 4.5);
-                stool.rotation.y = Math.PI/2;
-                stool.scale.set(1, 1, 1);
-
-                scene.add(stool);
-                console.log("Ghế đẩu thành công!");
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi ghế đẩu: ", error);
+                console.error("Lỗi tải khung tranh: ", error);
             }
         );
         // ===============================
