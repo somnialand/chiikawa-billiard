@@ -693,6 +693,25 @@
                 console.error("Lỗi khung tranh: ", error);
             }
         );
+        //=========================
+        // BƯỚC 6.17: LOAD GHẾ ĐẨU
+        //=========================
+        loader.load(
+            'stool.glb',
+            function (gltf) {
+                const stool = gltf.scene;
+                stool.position.set(-2.5, 0, 4.5);
+                stool.rotation.y = Math.PI/2;
+                stool.scale.set(1, 1, 1);
+
+                scene.add(stool);
+                console.log("Ghế đẩu thành công!");
+            },
+            undefined,
+            function (error) {
+                console.error("Lỗi ghế đẩu: ", error);
+            }
+        );
         // ===============================
 
         // 7. VÒNG LẶP RENDER
