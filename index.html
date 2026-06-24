@@ -37,6 +37,20 @@
         .control-btn:hover {
             background-color: #721830;
         }
+        /* --- CODE THÊM: CSS CHO BẢNG TÊN --- */
+        #name-tag {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            pointer-events: none; /* Không cản trở click chuột */
+            display: none; /* Mặc định ẩn */
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
     </style>
 
     <script type="importmap">
@@ -50,6 +64,7 @@
 </head>
 <body>
     <body>
+        <div id="name-tag">Name</div>
         <div class="control-panel">
             <h3>ĐIỀU KHIỂN CĂN NHÀ</h3>
             <button class="control-btn" id="btn-overview">Tổng Quan Toàn Nhà</button>
@@ -74,6 +89,29 @@
         let flipTimer = 0;    
         let tableTopY = 0;
         const usagiBaseY = 0;
+
+        // --- CODE THÊM: HỆ THỐNG RAYCASTER ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const interactables = []; 
+        const nameTag = document.getElementById('name-tag');
+
+        // Hàm gắn mác tên và khả năng nhảy cho model
+        function makeInteractable(model, englishName, isCharacter = false) {
+            if (!model) return;
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.userData.enName = englishName;
+                    child.userData.isCharacter = isCharacter;
+                    child.userData.parentGroup = model; 
+                    interactables.push(child); // Đưa vào danh sách bắt tia
+                }
+            });
+            if (isCharacter) {
+                model.userData.isJumping = false;
+                model.userData.jumpVelocity = 0;
+            }
+        }
 
         function resetBalls() {
             if (!customBalls || customBalls.length === 0) return;
@@ -269,7 +307,6 @@
         frontBox.position.set(0, 2.45, 4.5);
         billiardRoomGroup.add(frontBox);
 
-
         // 3. TĂNG SÁNG VIỀN THẠCH CAO (DẢI ĐÈN LED NỔI BẬT)
         // Thay đổi màu từ vàng nhạt sang màu TRẮNG SÁNG TUYỆT ĐỐI (0xffffff) 
         // Vì là MeshBasicMaterial nên nó sẽ tự phát phát quang rực rỡ nhất mà không bị đổ bóng che mờ
@@ -335,6 +372,7 @@
                 // Add vào đúng phòng Bi-a của Dollhouse
                 billiardRoomGroup.add(usagiModel);
                 console.log("Usagi đã dùng Pivot đứng vào vị trí lấy đà!");
+                makeInteractable(usagiModel, 'Usagi', true); // true = có thể nhảy
             },
             undefined, 
             function (error) {
@@ -372,6 +410,7 @@ loader.load(
         tableGroup.add(table); 
         billiardRoomGroup.add(tableGroup);
         createCustomBalls(tableTopY);
+        makeInteractable(tableGroup, 'Billiard Table', false); // false = không nhảy
         resetBalls();
 
         // =========================================================
@@ -394,6 +433,7 @@ const bottomTexture = localTextureLoader.load(
         texture.rotation = 0; 
         
         console.log("Xác nhận: Tiến trình đồng bộ tỷ lệ ảnh (Landscape) với mặt phẳng hoàn tất.");
+        
     },
     undefined,
     function(error) {
@@ -448,8 +488,8 @@ table.add(bottomMesh);
                     // SỬA LỖI KHỔNG LỒ: Thu nhỏ cái cột lại bằng 25% kích thước ban đầu
                     // Nếu sau khi lưu vẫn thấy to hoặc quá bé, bạn tăng/giảm đều cả 3 số này nhé (ví dụ: 0.2 hoặc 0.4)
                     columnClone.scale.set(0.3, 0.3, 0.3); 
-
                     billiardRoomGroup.add(columnClone);
+                    makeInteractable(columnClone, 'Pillar', false);
                 });
 
                 console.log("Đã cắm xong 4 cột trụ vừa vặn vào phòng 6x10!");
@@ -492,6 +532,7 @@ table.add(bottomMesh);
                 // });
 
                 console.log("Đã treo đèn chùm và bật công tắc điện!");
+                makeInteractable(chandelier, 'Chandelier', false);
             },
             undefined,
             function (error) {
@@ -639,6 +680,8 @@ table.add(bottomMesh);
                 billiardRoomGroup.add(rightSofa);
 
                 console.log("Đã kích hoạt chiêu tẩy map, ghế đã trắng muốt!");
+                makeInteractable(leftSofa, 'Sofa', false);
+                makeInteractable(rightSofa, 'Sofa', false);
             },
             undefined,
             function (error) {
@@ -664,6 +707,7 @@ table.add(bottomMesh);
 
                 billiardRoomGroup.add(fridge);
                 console.log("Đã kê tủ nước vào góc phòng giữa sofa và giá gậy!");
+                makeInteractable(fridge, 'Water Fridge', false);
             },
             undefined,
             function (error) {
@@ -689,6 +733,7 @@ table.add(bottomMesh);
                 chiikawaModel = chiikawa;
                 billiardRoomGroup.add(chiikawa);
                 console.log("Chiikawa đã vào vị trí, đứng cực kỳ thoáng đãng!");
+                makeInteractable(chiikawaModel, 'Chiikawa', true);
             },
             undefined,
             function (error) {
@@ -719,6 +764,7 @@ table.add(bottomMesh);
 
         billiardRoomGroup.add(wineCabinet2D);
         console.log("Đã kích hoạt MeshBasicMaterial, tủ rượu tự tỏa sáng tự nhiên!");
+        makeInteractable(wineCabinet2D, 'Wine Cabinet', false);
 
         // =================================================================
         // BƯỚC 6.11: TỰ CHẾ CỬA CÁCH ÂM BỌC DA MÚI RÚT (GẮN TƯỜNG PHẢI)
@@ -833,6 +879,7 @@ table.add(bottomMesh);
 
                 billiardRoomGroup.add(airConditioner);
                 console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
+                makeInteractable(airConditioner, 'Air Conditioner', false);
             },
             undefined,
             function (error) {
@@ -859,6 +906,7 @@ table.add(bottomMesh);
 
                 billiardRoomGroup.add(drawer);
                 console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
+                makeInteractable(drawer, 'Wooden Cabinet', false);
             },
             undefined,
             function (error) {
@@ -885,6 +933,7 @@ table.add(bottomMesh);
 
                 billiardRoomGroup.add(minecraft);
                 console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
+                makeInteractable(minecraft, 'Minecraft Figure', false);
             },
             undefined,
             function (error) {
@@ -909,6 +958,7 @@ table.add(bottomMesh);
 
                 billiardRoomGroup.add(plant);
                 console.log("Đã kê cây!");
+                makeInteractable(plant, 'Indoor Plant', false);
             },
             undefined,
             function (error) {
@@ -934,6 +984,7 @@ table.add(bottomMesh);
                 hachiwareModel.userData.baseY = hachiware.position.y; 
                 billiardRoomGroup.add(hachiware);
                 console.log("Đã cho Hachiware vào!");
+                makeInteractable(hachiwareModel, 'Hachiware', true);
             },
             undefined,
             function (error) {
@@ -977,6 +1028,7 @@ table.add(bottomMesh);
 
                 billiardRoomGroup.add(frame);
                 console.log("Ảo thuật dán đè thành công! Tranh mới đã lên khung mượt mà.");
+                makeInteractable(frame, 'Thắng Ngọt', false);
             },
             undefined,
             function (error) {
@@ -996,6 +1048,7 @@ table.add(bottomMesh);
 
                 billiardRoomGroup.add(stool);
                 console.log("Ghế đẩu thành công!");
+                makeInteractable(stool, 'Stool', false);
             },
             undefined,
             function (error) {
@@ -1116,6 +1169,32 @@ table.add(bottomMesh);
                 model.rotation.y += angleDiff * 0.05; 
             }
         }
+        // --- CODE THÊM: SỰ KIỆN CHUỘT ---
+        window.addEventListener('mousemove', (event) => {
+            // Đổi tọa độ chuột sang chuẩn Three.js (-1 đến 1)
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            // Bảng tên chạy theo chuột
+            nameTag.style.left = event.clientX + 15 + 'px';
+            nameTag.style.top = event.clientY + 15 + 'px';
+        });
+
+        window.addEventListener('click', () => {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactables, false);
+            if (intersects.length > 0) {
+                const clickedMesh = intersects[0].object;
+                if (clickedMesh.userData.isCharacter) {
+                    const character = clickedMesh.userData.parentGroup;
+                    // Bật công tắc nhảy
+                    if (!character.userData.isJumping) {
+                        character.userData.isJumping = true;
+                        character.userData.jumpVelocity = 0.15; // Lực nảy
+                        character.userData.jumpBaseY = character.position.y; // Nhớ vị trí gốc
+                    }
+                }
+            }
+        });
         function animate() {
             requestAnimationFrame(animate);
 
@@ -1132,7 +1211,31 @@ table.add(bottomMesh);
             }
 
             controls.update();
+            // 1. Logic Hiện Tên (Hover)
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactables, false);
+            if (intersects.length > 0) {
+                nameTag.style.display = 'block'; 
+                nameTag.innerText = intersects[0].object.userData.enName; 
+                document.body.style.cursor = 'pointer'; 
+            } else {
+                nameTag.style.display = 'none'; 
+                document.body.style.cursor = 'default';
+            }
 
+            // 2. Logic Trọng Lực Nhảy (Click)
+            const allCharacters = [usagiModel, chiikawaModel, hachiwareModel];
+            allCharacters.forEach(char => {
+                if (char && char.userData.isJumping) {
+                    char.position.y += char.userData.jumpVelocity; 
+                    char.userData.jumpVelocity -= 0.008; // Trọng lực kéo xuống
+                    // Rớt chạm đất thì dừng
+                    if (char.position.y <= char.userData.jumpBaseY) {
+                        char.position.y = char.userData.jumpBaseY;
+                        char.userData.isJumping = false;
+                    }
+                }
+            });
         // --- CHIIKAWA ĐI TUẦN ---
         updateMovement(chiikawaModel, 'chiikawa');
 
