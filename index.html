@@ -1158,7 +1158,7 @@ table.add(bottomMesh);
 
         // BỤC SẢNH DÀI: Từ cửa thang máy kéo dài ra để đặt cầu trượt (Rộng 2m, Dài 8m)
         const loungeTile = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 8.0), tileMat);
-        loungeTile.position.set(-0.5, 0, 4.0); // Bao phủ khu vực từ Z = 0 đến Z = 8
+        loungeTile.position.set(-0.5, 0, 2.0); // Bao phủ khu vực từ Z = 0 đến Z = 8
         PoolRoomGroup.add(loungeTile);
 
         // Viền phải (Rộng 0.5m)
@@ -1171,36 +1171,22 @@ table.add(bottomMesh);
         frontTile.position.set(0.5, 0, 9.75);
         PoolRoomGroup.add(frontTile);
 
-        const backTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 0.5), tileMat);
+        const backTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 3.8), tileMat);
         backTile.position.set(0.5, 0, -9.75);
         PoolRoomGroup.add(backTile);
 
         // =================================================================
         // 4. XÂY LÒNG BỂ BƠI (ÔM SÁT BỤC SẢNH)
         // =================================================================
-        // ĐÁY HỒ (Nông Y = -1.0)
-        // Trục chính chạy dọc bên phải (Rộng 2.0m, Dài 19m)
-        const bottomMain = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 19), poolWallMat);
-        bottomMain.position.set(1.5, -1.0, 0);
-        PoolRoomGroup.add(bottomMain);
-
-        // Nhánh ngập nước Tít Phía Trong (Rộng 2.0m, Dài 9.5m)
-        const bottomTopWing = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 9.5), poolWallMat);
-        bottomTopWing.position.set(-0.5, -1.0, -4.75);
-        PoolRoomGroup.add(bottomTopWing);
-
-        // Nhánh ngập nước Phía Ngoài Mặt Tiền (Rộng 2.0m, Dài 1.5m)
-        const bottomBottomWing = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 1.5), poolWallMat);
-        bottomBottomWing.position.set(-0.5, -1.0, 8.75);
-        PoolRoomGroup.add(bottomBottomWing);
+ 
 
         // THÀNH HỒ BƠI (Cao 1.0m, chặn mép gạch)
-        const pWallRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 19), poolWallMat);
-        pWallRight.position.set(2.45, -0.5, 0);
+        const pWallRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 17.2), poolWallMat);
+        pWallRight.position.set(2.45, -0.5, 0.8);
         PoolRoomGroup.add(pWallRight);
 
         const pWallBack = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 0.1), poolWallMat);
-        pWallBack.position.set(0.5, -0.5, -9.45);
+        pWallBack.position.set(0.5, -0.5, -7.9);
         PoolRoomGroup.add(pWallBack);
 
         const pWallFront = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 0.1), poolWallMat);
@@ -1208,44 +1194,30 @@ table.add(bottomMesh);
         PoolRoomGroup.add(pWallFront);
 
         // Vách hồ áp sát hành lang trái
-        const pWallLeftTop = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 9.5), poolWallMat);
-        pWallLeftTop.position.set(-1.45, -0.5, -4.75);
+        const pWallLeftTop = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 6), poolWallMat);
+        pWallLeftTop.position.set(-1.45, -0.5, -5);
         PoolRoomGroup.add(pWallLeftTop);
 
-        const pWallLeftBottom = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 1.5), poolWallMat);
-        pWallLeftBottom.position.set(-1.45, -0.5, 8.75);
+        const pWallLeftBottom = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 3.5), poolWallMat);
+        pWallLeftBottom.position.set(-1.45, -0.5, 7.75);
         PoolRoomGroup.add(pWallLeftBottom);
 
         // Vách hồ bao quanh BỤC SẢNH (Chặn nước khỏi tràn lên sảnh 2x8)
         const pWallLoungeTop = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.1), poolWallMat);
-        pWallLoungeTop.position.set(-0.5, -0.5, 0.05);
+        pWallLoungeTop.position.set(-0.5, -0.5, -2);
         PoolRoomGroup.add(pWallLoungeTop);
 
         const pWallLoungeBottom = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.1), poolWallMat);
-        pWallLoungeBottom.position.set(-0.5, -0.5, 7.95);
+        pWallLoungeBottom.position.set(-0.5, -0.5, 6);
         PoolRoomGroup.add(pWallLoungeBottom);
 
         const pWallLoungeRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 8.0), poolWallMat);
-        pWallLoungeRight.position.set(0.45, -0.5, 4.0);
+        pWallLoungeRight.position.set(0.45, -0.5, 2.0);
         PoolRoomGroup.add(pWallLoungeRight);
 
+// =================================================================
+        // 5. CHỈ FILL NƯỚC (Giữ nguyên vách, không sửa lung tung)
         // =================================================================
-        // 5. ĐỔ MẶT NƯỚC (Ghép 3 tấm Plane)
-        // =================================================================
-        const waterMain = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 19), waterMat);
-        waterMain.rotation.x = -Math.PI / 2;
-        waterMain.position.set(1.5, -0.1, 0);
-        PoolRoomGroup.add(waterMain);
-
-        const waterTopWing = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 9.5), waterMat);
-        waterTopWing.rotation.x = -Math.PI / 2;
-        waterTopWing.position.set(-0.5, -0.1, -4.75);
-        PoolRoomGroup.add(waterTopWing);
-
-        const waterBottomWing = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.5), waterMat);
-        waterBottomWing.rotation.x = -Math.PI / 2;
-        waterBottomWing.position.set(-0.5, -0.1, 8.75);
-        PoolRoomGroup.add(waterBottomWing);
 
         // =================================================================
         // 5.5. BẬC THANG BỂ BƠI (Dịch sang trục X=0.75 đâm thẳng từ sảnh xuống)
@@ -1293,6 +1265,34 @@ table.add(bottomMesh);
             undefined,
             function (error) {
                 console.error("Lỗi lắp đặt slide: ", error);
+            }
+        );
+
+        loader.load(
+            'lounge.glb', // Tên file đã convert nhúng sẵn texture của bạn
+            function (gltf) {
+                const lounge = gltf.scene;
+
+                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
+                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
+                lounge.position.set(-1.5, 0, 3);
+                lounge.scale.set(0.03,0.02,0.02);
+
+                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
+                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
+                lounge.rotation.y = Math.PI/2; 
+
+                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
+                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
+                // airConditioner.scale.set(1, 1, 1);
+
+                PoolRoomGroup.add(lounge);
+                console.log("ghế đã lên cành đào!");
+                makeInteractable(lounge, 'Lounge Chair', false);
+            },
+            undefined,
+            function (error) {
+                console.error("Lỗi lắp đặt ghế bể bơi: ", error);
             }
         );
 
