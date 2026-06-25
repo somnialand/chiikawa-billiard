@@ -37,7 +37,7 @@
         .control-btn:hover {
             background-color: #721830;
         }
-        /* --- CODE THÊM: CSS CHO BẢNG TÊN --- */
+        /* --- CSS CHO BẢNG TÊN --- */
         #name-tag {
             position: absolute;
             background: rgba(0, 0, 0, 0.8);
@@ -68,8 +68,9 @@
         <div class="control-panel">
             <h3>ĐIỀU KHIỂN CĂN NHÀ</h3>
             <button class="control-btn" id="btn-overview">Tổng Quan Toàn Nhà</button>
-            <button class="control-btn" id="btn-billiard">Phòng Bi-a (Phải)</button>
-            <button class="control-btn" id="btn-LivingRoom">Phòng Mới (Trái)</button>
+            <button class="control-btn" id="btn-billiard">Phòng Bi-a</button>
+            <button class="control-btn" id="btn-LivingRoom">Phòng Khách</button>
+            <button class="control-btn" id="btn-Pool">Bể bơi</button>
         </div>
     <script type="module">
         // Bây giờ import kiểu này trình duyệt sẽ hiểu 100%
@@ -177,6 +178,10 @@
             LivingRoom: {
                 position: new THREE.Vector3(5, 2, 12),  // Tiến sát vào phòng mới bên trái
                 target: new THREE.Vector3(0, 0.5, 12)     // Tập trung vào phòng mới
+            },
+            Pool: {
+                position: new THREE.Vector3(10, -2, 5.5),  // Đứng thấp xuống để nhìn ngang tầng hầm
+                target: new THREE.Vector3(0, -2.5, 5.5)    // Nhìn thẳng vào hồ bơi
             }
         };
 
@@ -214,12 +219,12 @@
         const textureLoader = new THREE.TextureLoader();
         const woodTexture = textureLoader.load('wood.jpg'); // Gọi file ảnh wood.jpg đứng cạnh index.html
 
-        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x9b2242, roughness: 0.8 });
+        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x9b2242, roughness: 2.0 });
         const floorMaterial = new THREE.MeshStandardMaterial({ 
             map: woodTexture, 
             roughness: 0.3 // Giảm độ nhám xuống một chút để sàn gỗ có độ bóng nhẹ hắt ánh sáng
         });
-        const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0xfcf4d7, roughness: 0.9 }); // Màu trần
+        const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0xfcf4d7, roughness: 2.0 }); // Màu trần
 
         // 2. Cấu hình cho vân gỗ lặp lại (Tiling) để nhìn tự nhiên, không bị kéo giãn bẹp dí
         woodTexture.wrapS = THREE.RepeatWrapping;
@@ -235,24 +240,27 @@
         floor.position.y = 0; 
         billiardRoomGroup.add(floor);
 
-        // 2. Tường sau (Rộng 6, Cao 2.5. Đẩy lùi về phía sau z = -5)
-        const backWallGeo = new THREE.PlaneGeometry(6, 2.5);
+        // 2. Tường sau (Rộng 6, Cao 2.5, Dày 0.2)
+        const backWallGeo = new THREE.BoxGeometry(6, 2.5, 0.05);
         const backWall = new THREE.Mesh(backWallGeo, wallMaterial);
-        // Vì tường cao 2.5 nên phải nâng y lên một nửa (1.25) để đáy tường chạm đúng sàn y = 0
-        backWall.position.set(0, 1.25, -5); 
+        // Nâng y=1.25 để chạm sàn. Lùi z=-5.1 để mép trong ốp vừa khít viền sàn
+        backWall.position.set(0, 1.25, -5.1); 
         billiardRoomGroup.add(backWall);
 
-        // 3. Tường bên trái (Rộng 6, Cao 2.5. Đẩy sang trái x = -3)
-        const leftWallGeo = new THREE.PlaneGeometry(10, 2.5);
+        // 3. Tường bên trái (Dài 10, Cao 2.5, Dày 0.2)
+        const leftWallGeo = new THREE.BoxGeometry(10, 2.5, 0.05);
         const leftWall = new THREE.Mesh(leftWallGeo, wallMaterial);
         leftWall.rotation.y = Math.PI / 2;
-        leftWall.position.set(-3, 1.25, 0); 
+        leftWall.position.set(-3.1, 1.25, 0); // Đẩy ra rìa trái x=-3.1
         billiardRoomGroup.add(leftWall);
 
-        // 4. Tường trước (Rộng 6, Cao 2.5. Đặt ở rìa trước z = 5)
-        const frontWallGeo = new THREE.PlaneGeometry(6, 2.5);
+        // 4. Tường trước (Rộng 6, Cao 2.5, Dày 0.2)
+        const frontWallGeo = new THREE.BoxGeometry(6, 2.5, 0.05);
         const frontWall = new THREE.Mesh(frontWallGeo, wallMaterial);
-        
+        frontWall.position.set(0, 1.25, 5.1); // Đẩy ra rìa trước z=5.1
+        // Đã là khối hộp 3D thì không cần lệnh lật mặt (rotation.y = Math.PI) nữa
+        billiardRoomGroup.add(frontWall);
+
         // SỬA TỌA ĐỘ: Đặt đúng rìa sàn (z = 5)
         frontWall.position.set(0, 1.25, 5); 
         
@@ -268,19 +276,19 @@
         // Chất liệu 1: Màu trắng thạch cao sạch sẽ cho phần khung hạ cấp xung quanh
         const outerCeilingMat = new THREE.MeshStandardMaterial({ 
             color: 0xefefef, 
-            roughness: 0.6 
+            roughness: 2.0 
         });
 
         // Chất liệu 2: MÀU KEM/BE HOÀNG GIA ĐẬM ĐÀ cho tấm hình chữ nhật lõm bên trong
         const innerCeilingMat = new THREE.MeshStandardMaterial({ 
             color: 0xeedebf, // Mã màu kem/be lên đèn cực sang
-            roughness: 0.5 
+            roughness: 2.0 
         });
 
-        // 1. TẤM TRẦN NỀN TRUNG TÂM (Áp dụng chất liệu màu kem/be mới)
-        const topCeilingGeo = new THREE.PlaneGeometry(4, 8);
+        // 1. TẤM TRẦN NỀN TRUNG TÂM (Đổ khối bê tông dày 0.2m)
+        const topCeilingGeo = new THREE.BoxGeometry(4.4, 0.05, 8.4);
         const topCeiling = new THREE.Mesh(topCeilingGeo, innerCeilingMat); 
-        topCeiling.rotation.x = Math.PI / 2;
+        // Đã là khối hộp nên không cần xoay lật mặt nữa
         topCeiling.position.set(0, 2.6, 0); 
         billiardRoomGroup.add(topCeiling);
 
@@ -1073,19 +1081,19 @@ table.add(bottomMesh);
         LivingRoomFloor.rotation.x = -Math.PI / 2;
         LivingRoomGroup.add(LivingRoomFloor);
 
-        // 2. Tường bên phải
-        const LivingRoomRightWall = new THREE.Mesh(new THREE.PlaneGeometry(6, 2.5), LivingRoomWallMat);
+        // 2. Tường bên phải (Phòng khách)
+        const LivingRoomRightWall = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 0.05), LivingRoomWallMat);
         LivingRoomRightWall.position.set(0, 1.25, -4);
         LivingRoomGroup.add(LivingRoomRightWall);
 
-        // 3. Tường sau
-        const LivingRoomBackWall = new THREE.Mesh(new THREE.PlaneGeometry(8, 2.5), LivingRoomWallMat);
+        // 3. Tường sau (Phòng khách)
+        const LivingRoomBackWall = new THREE.Mesh(new THREE.BoxGeometry(8, 2.5, 0.05), LivingRoomWallMat);
         LivingRoomBackWall.rotation.y = Math.PI / 2;
-        LivingRoomBackWall.position.set(-3, 1.25, 0);
+        LivingRoomBackWall.position.set(-3.1, 1.25, 0);
         LivingRoomGroup.add(LivingRoomBackWall);
 
-        // 2. Tường bên trái
-        const LivingRoomLeftWall = new THREE.Mesh(new THREE.PlaneGeometry(6, 2.5), LivingRoomWallMat);
+        // 4. Tường bên trái (Phòng khách)
+        const LivingRoomLeftWall = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 0.05), LivingRoomWallMat);
         LivingRoomLeftWall.position.set(0, 1.25, 4);
         LivingRoomGroup.add(LivingRoomLeftWall);
 
@@ -1093,32 +1101,6 @@ table.add(bottomMesh);
             'livingroom.glb',
             function (gltf) {
                 const living = gltf.scene;
-                
-                // =======================================================
-                // TUYỆT CHIÊU XÓA SÀN VÀ TƯỜNG CỦA MODEL SKETCHFAB
-                // =======================================================
-                living.traverse(function(child) {
-                    if (child.isMesh) {
-                        // Bật dòng log này lên nếu code bên dưới chưa xóa hết tường, 
-                        // nó sẽ in toàn bộ tên các bộ phận ra tab Console (F12) để bạn dò.
-                        console.log("Tên bộ phận:", child.name);
-
-                        // Chuyển tên về chữ thường hết để dễ kiểm tra
-                        const partName = child.name.toLowerCase();
-                        
-                        // Nếu tên bộ phận có chứa các từ khóa tường/sàn/mặt phẳng thì ẩn nó đi
-                        if (partName.includes('Object_12') || 
-                            partName.includes('Object_15') || 
-                            partName.includes('Object_18') || 
-                            partName.includes('Object_10') || 
-                            partName.includes('room') ||
-                            partName.includes('base')) {
-                            
-                            child.visible = false; // Ẩn tàng hình luôn!
-                        }
-                    }
-                });
-
                 living.position.set(0.1, 0, 0); //dài cao rộng
                 living.rotation.y = 3*Math.PI/2;
                 living.scale.set(0.013, 0.01, 0.0183);
@@ -1131,6 +1113,215 @@ table.add(bottomMesh);
                 console.error("Lỗi load phòng khách: ", error); 
             }
         );
+
+        // =================================================================
+        // BƯỚC MỚI: DỰNG TẦNG TRỆT BỂ BƠI (NẰM SÂU DƯỚI Y = -3.5)
+        // =================================================================
+        const PoolRoomGroup = new THREE.Group();
+        // Căn phòng phía trên kéo dài từ Z = -5 đến Z = 15. Ta đặt tâm bể bơi ở giữa (Z = 5).
+        // Hạ độ cao xuống Y = -3.5 để làm tầng dưới.
+        PoolRoomGroup.position.set(0, -3.5, 5); 
+        scene.add(PoolRoomGroup);
+
+        // 1. CHẤT LIỆU CHO BỂ BƠI
+        const tileMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 2.0 }); // Gạch nhám viền hồ
+        const poolWallMat = new THREE.MeshStandardMaterial({ color: 0x4fc3f7, roughness: 2.0 }); // Gạch lát lòng hồ bơi (màu xanh lơ)
+        const waterMat = new THREE.MeshStandardMaterial({ 
+            color: 0x00e5ff, 
+            transparent: true, 
+            opacity: 0.7,  // Độ trong suốt của nước
+            roughness: 0.1,
+            metalness: 0.3
+        });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 2.0 }); // Tường nhà hầm tối màu
+
+        // 2. DỰNG TƯỜNG BAO QUANH TẦNG HẦM (Dài 20m, Rộng 6m, Cao 3.5m)
+        // Tường trái hầm
+        const poolWallLeft = new THREE.Mesh(new THREE.PlaneGeometry(20, 3.5), wallMat);
+        poolWallLeft.rotation.y = Math.PI / 2;
+        poolWallLeft.position.set(-3, 1.75, 0);
+        PoolRoomGroup.add(poolWallLeft);
+        
+        // Tường sau hầm
+        const poolWallBack = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.5), wallMat);
+        poolWallBack.position.set(0, 1.75, -10);
+        PoolRoomGroup.add(poolWallBack);
+
+        // 3. XÂY SÀN GẠCH XUNG QUANH (Viền hồ bơi)
+        // Viền Trái / Phải (Rộng 1m)
+        const leftTile = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 20), tileMat);
+        leftTile.position.set(-2.5, 0, 0);
+        PoolRoomGroup.add(leftTile);
+        
+        const rightTile = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 20), tileMat);
+        rightTile.position.set(2.5, 0, 0);
+        PoolRoomGroup.add(rightTile);
+
+        // Viền Trước / Sau (Rộng 3m)
+        const frontTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 3), tileMat);
+        frontTile.position.set(0, 0, 8.5);
+        PoolRoomGroup.add(frontTile);
+
+        const backTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 3), tileMat);
+        backTile.position.set(0, 0, -8.5);
+        PoolRoomGroup.add(backTile);
+
+        // 4. LÒNG BỂ BƠI (Đào sâu xuống Y = -1.5 so với sàn hầm)
+        const poolBottom = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 14), poolWallMat);
+        poolBottom.position.set(0, -1.5, 0);
+        PoolRoomGroup.add(poolBottom);
+
+        const pWall1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 14), poolWallMat);
+        pWall1.position.set(-1.95, -0.75, 0);
+        PoolRoomGroup.add(pWall1);
+
+        const pWall2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 14), poolWallMat);
+        pWall2.position.set(1.95, -0.75, 0);
+        PoolRoomGroup.add(pWall2);
+
+        const pWall3 = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 0.1), poolWallMat);
+        pWall3.position.set(0, -0.75, -6.95);
+        PoolRoomGroup.add(pWall3);
+
+        const pWall4 = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 0.1), poolWallMat);
+        pWall4.position.set(0, -0.75, 6.95);
+        PoolRoomGroup.add(pWall4);
+
+        // 5. ĐỔ NƯỚC VÀO BỂ BƠI
+        const poolWater = new THREE.Mesh(new THREE.PlaneGeometry(4, 14), waterMat);
+        poolWater.rotation.x = -Math.PI / 2;
+        poolWater.position.set(0, -0.2, 0); // Mặt nước mấp mé thành hồ
+        PoolRoomGroup.add(poolWater);
+
+        // 6. GẮN ĐÈN CHO BỂ BƠI TỎA SÁNG
+        const poolLight = new THREE.PointLight(0x88ccff, 2, 15);
+        poolLight.position.set(0, 1, 0);
+        PoolRoomGroup.add(poolLight);
+        makeInteractable(poolWater, 'Swimming Pool', false);
+
+// =================================================================
+        // BƯỚC MỚI: DỰNG CỘT THANG MÁY KHỐI HỘP ÔM KHÍT 3 MẶT TƯỜNG
+        // =================================================================
+        
+        // 1. Xây "Đảo hạ cánh" giữa lòng bể bơi. 
+        // Kéo dài cho vừa khít khoảng trống 2m (Z=2) và ép sát mép trái
+        const elevatorPillar = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 1.5, 2.0), 
+            poolWallMat 
+        );
+        // Tâm thang máy đặt ở X = -2.25 (để lưng chạm đúng tọa độ X = -3 của mép nhà)
+        elevatorPillar.position.set(-2.25, -0.75, 1); 
+        PoolRoomGroup.add(elevatorPillar);
+
+        // 2. Hệ thống Trụ Thang Máy Tổng Cố Định
+        const ElevatorGroup = new THREE.Group();
+        // Đẩy tâm thang máy lùi kịch về -2.25, nằm vừa vặn bịt kín khe hở 2m (Z=6)
+        ElevatorGroup.position.set(-2.25, 0, 6); 
+        scene.add(ElevatorGroup);
+
+        const shaftMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.5 });
+        const luxuryInoxMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8, roughness: 0.1 });
+
+        // 2.1. DỰNG 3 MẶT VÁCH KÍN THANG MÁY (Bịt kẽ hở giữa 2 phòng)
+        // Vách Lưng (Ép phẳng lỳ với mép tường trái của cả căn nhà X = -3)
+        const shaftBack = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 2.0), shaftMat);
+        shaftBack.position.set(-0.73, -0.5, 0); 
+        ElevatorGroup.add(shaftBack);
+
+        // Vách Phải (Ép khít rịt vào tường phòng Bi-a Z = 5)
+        const shaftRight = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6, 0.04), shaftMat);
+        shaftRight.position.set(0, -0.5, -0.98); 
+        ElevatorGroup.add(shaftRight);
+
+        // Vách Trái (Ép khít rịt vào tường phòng Khách Z = 7)
+        const shaftLeft = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6, 0.04), shaftMat);
+        shaftLeft.position.set(0, -0.5, 0.98); 
+        ElevatorGroup.add(shaftLeft);
+
+        // 2.2. VÁCH MẶT TRƯỚC VÀ LỖ CỬA (Che mặt tiền, chừa lỗ cửa rộng 1.2m)
+        const shaftFrontLeft = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 0.4), shaftMat);
+        shaftFrontLeft.position.set(0.73, -0.5, 0.8);
+        ElevatorGroup.add(shaftFrontLeft);
+
+        const shaftFrontRight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 0.4), shaftMat);
+        shaftFrontRight.position.set(0.73, -0.5, -0.8);
+        ElevatorGroup.add(shaftFrontRight);
+
+        const shaftFrontMiddle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.3, 1.2), shaftMat);
+        shaftFrontMiddle.position.set(0.73, -0.65, 0); // Đoạn tường ngăn giữa 2 tầng
+        ElevatorGroup.add(shaftFrontMiddle);
+        
+        const shaftFrontTop = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 1.2), shaftMat);
+        shaftFrontTop.position.set(0.73, 2.35, 0); // Đoạn tường phào chỉ trên trần
+        ElevatorGroup.add(shaftFrontTop);
+
+        // 3. TRANG TRÍ NỘI THẤT BÊN TRONG THANG MÁY (Ốp Inox Gold sang trọng)
+        const inoxBack = new THREE.BoxGeometry(0.01, 2.2, 1.9);
+
+        const innerInoxBackT2 = new THREE.Mesh(inoxBack, luxuryInoxMat);
+        innerInoxBackT2.position.set(-0.7, 1.1, 0); // Nội thất Tầng 2
+        ElevatorGroup.add(innerInoxBackT2);
+
+        const innerInoxBackT1 = new THREE.Mesh(inoxBack, luxuryInoxMat);
+        innerInoxBackT1.position.set(-0.7, -2.4, 0); // Nội thất Tầng 1
+        ElevatorGroup.add(innerInoxBackT1);
+
+        // Đèn hắt trần buồng thang
+        const interiorLightT2 = new THREE.PointLight(0xfffee0, 1.5, 3);
+        interiorLightT2.position.set(0, 2.1, 0);
+        ElevatorGroup.add(interiorLightT2);
+
+        const interiorLightT1 = new THREE.PointLight(0xfffee0, 1.5, 3);
+        interiorLightT1.position.set(0, -1.4, 0);
+        ElevatorGroup.add(interiorLightT1);
+
+        // 4. HỆ THỐNG CỬA TRƯỢT (Nằm lọt lòng vách trước)
+        const doorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.2 });
+        const doorGeo = new THREE.BoxGeometry(0.02, 2.2, 0.6);
+
+        // Cửa trượt Tầng 2
+        const leftDoorT2 = new THREE.Mesh(doorGeo, doorMat);
+        leftDoorT2.position.set(0.73, 1.1, 0.3);
+        ElevatorGroup.add(leftDoorT2);
+
+        const rightDoorT2 = new THREE.Mesh(doorGeo, doorMat);
+        rightDoorT2.position.set(0.73, 1.1, -0.3);
+        ElevatorGroup.add(rightDoorT2);
+
+        // Cửa trượt Tầng 1
+        const leftDoorT1 = new THREE.Mesh(doorGeo, doorMat);
+        leftDoorT1.position.set(0.73, -2.4, 0.3);
+        ElevatorGroup.add(leftDoorT1);
+
+        const rightDoorT1 = new THREE.Mesh(doorGeo, doorMat);
+        rightDoorT1.position.set(0.73, -2.4, -0.3);
+        ElevatorGroup.add(rightDoorT1);
+
+        ElevatorGroup.userData = {
+            leftDoorT2: leftDoorT2, rightDoorT2: rightDoorT2,
+            leftDoorT1: leftDoorT1, rightDoorT1: rightDoorT1,
+            baseLeftZ: 0.3, baseRightZ: -0.3
+        };
+
+        makeInteractable(shaftBack, 'Luxury Elevator Shaft', false);
+
+        // =================================================================
+        // BƯỚC MỚI: DỰNG SÀN HÀNH LANG (NỐI PHÒNG BI-A VÀ PHÒNG KHÁCH)
+        // =================================================================
+        // Khoảng trống từ cửa thang máy (X = -1.5) ra đến mép ngoài nhà (X = 3) là 4.5m
+        // Bề rộng của khe hở giữa 2 phòng là 2m (Từ Z = 5 đến Z = 7)
+        
+        // Tạo mặt sàn có độ dày nhẹ (0.05) để từ dưới bể bơi nhìn lên thấy trần hành lang
+        const corridorFloor = new THREE.Mesh(
+            new THREE.BoxGeometry(4.54, 0.05, 2.0), 
+            floorMaterial // Dùng chung vân gỗ với phòng Bi-a cho đồng bộ
+        );
+        
+        // Căn giữa mặt sàn vào đúng khoảng trống (X = 0.75, Z = 6)
+        // Đặt Y = -0.025 để mặt trên của hành lang phẳng tuyệt đối với mặt sàn gỗ 2 phòng (Y = 0)
+        corridorFloor.position.set(0.75, -0.025, 6); 
+        
+        scene.add(corridorFloor);
 
         // 7. VÒNG LẶP RENDER
         // ==========================================
@@ -1295,17 +1486,47 @@ table.add(bottomMesh);
                 resetBalls();
             }
 
-            // Vật lý rơi của các viên bi
+            // Vật lý rơi và va chạm của các viên bi
             if (flipTimer > 150 && flipTimer < 600) {
                 customBalls.forEach(ball => {
                     ball.userData.velocity.y -= 0.003; // Trọng lực
                     ball.position.add(ball.userData.velocity);
 
-                    if (ball.position.y <= 0.03) { // Chạm đất nảy lên
-                        ball.position.y = 0.03; 
-                        ball.userData.velocity.y *= -0.65; 
-                        ball.userData.velocity.x *= 0.98;  
+                    const radius = 0.04;
+
+                    // 1. Va chạm với mặt sàn và TRẦN NHÀ (Trục Y)
+                    const ceilingHeight = 2.5 - radius; // Trần nhà cao 2.5m
+
+                    if (ball.position.y <= radius) { // Đập mặt sàn
+                        ball.position.y = radius; 
+                        ball.userData.velocity.y *= -0.65; // Nảy lên
+                        ball.userData.velocity.x *= 0.98;  // Ma sát sàn làm chậm bi
                         ball.userData.velocity.z *= 0.98;
+                    } else if (ball.position.y >= ceilingHeight) { // Đập trần nhà
+                        ball.position.y = ceilingHeight;
+                        ball.userData.velocity.y *= -0.65; // Bật dội ngược xuống dưới
+                    }
+
+                    // 2. Va chạm với các bức tường (Trục X và Z)
+                    const boundX = 3.0 - radius; // Mép tường trái/phải
+                    const boundZ = 5.0 - radius; // Mép tường trước/sau
+
+                    // Đập tường Trái / Phải (Trục X)
+                    if (ball.position.x < -boundX) {
+                        ball.position.x = -boundX; 
+                        ball.userData.velocity.x *= -0.8; 
+                    } else if (ball.position.x > boundX) {
+                        ball.position.x = boundX;
+                        ball.userData.velocity.x *= -0.8;
+                    }
+
+                    // Đập tường Trước / Sau (Trục Z)
+                    if (ball.position.z < -boundZ) {
+                        ball.position.z = -boundZ;
+                        ball.userData.velocity.z *= -0.8;
+                    } else if (ball.position.z > boundZ) {
+                        ball.position.z = boundZ;
+                        ball.userData.velocity.z *= -0.8;
                     }
                 });
             }
@@ -1334,6 +1555,12 @@ table.add(bottomMesh);
         document.getElementById('btn-LivingRoom').addEventListener('click', function() {
             targetView = cameraViews.LivingRoom;
             isTransitioning = true; // Bật chế độ bay
+        });
+
+        // Lệnh giúp nút bể bơi hoạt động
+        document.getElementById('btn-Pool').addEventListener('click', function() {
+            targetView = cameraViews.Pool;
+            isTransitioning = true; // Bật chế độ bay xuống tầng hầm
         });
 
         controls.addEventListener('start', function() {
