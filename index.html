@@ -756,7 +756,7 @@ table.add(bottomMesh);
         const cabinetTexture = textureLoader.load('wine_cabin.jpg'); 
 
         // Giữ nguyên kích thước bề thế (Rộng 2.6m, Cao 2.0m)
-        const cabinetGeo = new THREE.BoxGeometry(2.6, 2.4, 0.001);
+        const cabinetGeo = new THREE.BoxGeometry(2.6, 2.4, 0.01);
         
         // THẦN CHÚ: Sử dụng MeshBasicMaterial để lột bỏ hoàn toàn tác động của đèn scene
         const cabinetMat = new THREE.MeshBasicMaterial({
@@ -766,7 +766,7 @@ table.add(bottomMesh);
         const wineCabinet2D = new THREE.Mesh(cabinetGeo, cabinetMat);
 
         // ĐỊNH VỊ: Ép sát sạt vào vách sau (Z = 4.95 để không bị lún hẳn ra sau tường Z = 5)
-        wineCabinet2D.position.set(-1.3, 1.2, 4.99);
+        wineCabinet2D.position.set(-1.3, 1.2, 4.95);
 
         // XOAY HƯỚNG: Quay mặt có ảnh tủ rượu vào trong phòng bi-a
         wineCabinet2D.rotation.y = Math.PI; 
@@ -1269,22 +1269,12 @@ table.add(bottomMesh);
         );
 
         loader.load(
-            'lounge.glb', // Tên file đã convert nhúng sẵn texture của bạn
+            'lounge.glb',
             function (gltf) {
                 const lounge = gltf.scene;
-
-                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
-                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
                 lounge.position.set(-1.5, 0, 3);
                 lounge.scale.set(0.03,0.02,0.02);
-
-                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
-                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
                 lounge.rotation.y = Math.PI/2; 
-
-                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
-                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
-                // airConditioner.scale.set(1, 1, 1);
 
                 PoolRoomGroup.add(lounge);
                 console.log("ghế đã lên cành đào!");
