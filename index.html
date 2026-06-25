@@ -6,74 +6,27 @@
     <style>
         body { margin: 0; overflow: hidden; } 
         .control-panel {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.85);
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            font-family: Arial, sans-serif;
+            position: fixed; top: 20px; left: 20px; z-index: 100;
+            background: rgba(255, 255, 255, 0.85); padding: 15px; border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: Arial, sans-serif;
         }
-        .control-panel h3 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            color: #333;
-        }
-        .control-btn {
-            display: block;
-            width: 100%;
-            margin-bottom: 8px;
-            padding: 8px 12px;
-            background-color: #9b2242; /* Lấy luôn màu tường của bạn cho đồng bộ */
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
-        }
-        .control-btn:hover {
-            background-color: #721830;
-        }
-        /* --- CSS CHO BẢNG TÊN --- */
-        #name-tag {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.8);
-            color: #fff;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-            pointer-events: none; /* Không cản trở click chuột */
-            display: none; /* Mặc định ẩn */
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
+        .control-btn { display: block; width: 100%; margin-bottom: 8px; padding: 8px 12px; background-color: #9b2242; color: white; border: none; border-radius: 4px; cursor: pointer; }
     </style>
-
     <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-      }
+      { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
     </script>
 </head>
 <body>
-    <body>
-        <div id="name-tag">Name</div>
-        <div class="control-panel">
-            <h3>ĐIỀU KHIỂN CĂN NHÀ</h3>
-            <button class="control-btn" id="btn-overview">Tổng Quan Toàn Nhà</button>
-            <button class="control-btn" id="btn-billiard">Phòng Bi-a</button>
-            <button class="control-btn" id="btn-LivingRoom">Phòng Khách</button>
-            <button class="control-btn" id="btn-Pool">Bể bơi</button>
-        </div>
+    <div id="name-tag">Name</div>
+    <div class="control-panel">
+        <h3>ĐIỀU KHIỂN CĂN NHÀ</h3>
+        <button class="control-btn" id="btn-overview">Tổng Quan</button>
+        <button class="control-btn" id="btn-billiard">Phòng Bi-a</button>
+        <button class="control-btn" id="btn-LivingRoom">Phòng Khách</button>
+        <button class="control-btn" id="btn-Pool">Bể bơi</button>
+    </div>
+
     <script type="module">
-        // Bây giờ import kiểu này trình duyệt sẽ hiểu 100%
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -84,12 +37,18 @@
         let usagiModel = null;
         let chiikawaModel = null;
         let hachiwareModel = null;
+        let mikuModel = null;
         let poolWater = null;
+        let stoolModel = null;
 
         let tableGroup = new THREE.Group(); // Gói bàn vào Group để lật
         let customBalls = []; 
         let flipTimer = 0;    
         let tableTopY = 0;
+        let sharkModel = null;
+        let doraemonModel = null; // Bé doraemon trượt
+        let poolGroup = new THREE.Group(); // Nhóm chứa các vật thể bể bơi
+        let splashParticles = []; // Hạt nước bắn lên khi Doraemon nhảy xuống
         const usagiBaseY = 0;
 
         // --- CODE THÊM: HỆ THỐNG RAYCASTER ---
@@ -194,6 +153,8 @@
         // 3. XUẤT HÌNH (Renderer)
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
         // 4. BẬT ĐÈN (Tăng cường độ sáng lên cho rõ nét)
@@ -345,43 +306,45 @@
         // =================================================================
         const loader = new GLTFLoader();
 
-       // --- 6.1. LOAD USAGI ---
-       loader.load(
+       // --- 6.1. LOAD USAGI VÀ GẮN GẬY ---
+        loader.load(
             'model.glb', 
             function (gltf) {
                 const usagi = gltf.scene;
                 
-                // 1. Tính toán chiều cao thật và tạo Bounding Box
+                // ... (Các đoạn tính toán Pivot giữ nguyên như cũ) ...
                 const usagiBox = new THREE.Box3().setFromObject(usagi);
                 const usagiHeight = usagiBox.max.y - usagiBox.min.y;
-                const usagiGroundY = 0.02; // Cách mặt sàn một chút để không bị Z-fighting
+                const usagiGroundY = 0.02;
                 
-                // 2. TẠO PIVOT (Đưa trục xoay xuống gót chân)
                 const usagiPivot = new THREE.Group();
-                usagi.position.set(0, -usagiBox.min.y, 0); // Kéo mô hình lên sao cho đáy chạm tâm Pivot
+                usagi.position.set(0, -usagiBox.min.y, 0);
                 usagi.rotation.set(0, Math.PI, 0);
-                
-                usagiPivot.add(usagi); // Nhét Usagi vào Pivot
-                
-                // Bây giờ di chuyển/xoay là thao tác trực tiếp trên Pivot
+                usagiPivot.add(usagi);
                 usagiPivot.position.set(0, usagiGroundY, 2.5);
                 usagiPivot.rotation.y = -2 * Math.PI; 
 
-                // 3. Khai báo userData chuẩn để hàm animate() lấy dữ liệu nhảy
-                usagiPivot.userData = {
-                    groundY: usagiGroundY,
-                    minY: usagiBox.min.y,
-                    tableY: tableTopY > 0 ? tableTopY : null,
-                    jumpHeight: Math.max(0.9, usagiHeight * 0.8)
-                };
-
-                // Lắp biến toàn cục
+                usagiPivot.userData = { groundY: usagiGroundY, minY: usagiBox.min.y, tableY: tableTopY > 0 ? tableTopY : null, jumpHeight: Math.max(0.9, usagiHeight * 0.8) };
                 usagiModel = usagiPivot;
-
-                // Add vào đúng phòng Bi-a của Dollhouse
                 billiardRoomGroup.add(usagiModel);
-                console.log("Usagi đã dùng Pivot đứng vào vị trí lấy đà!");
-                makeInteractable(usagiModel, 'Usagi', true); // true = có thể nhảy
+                makeInteractable(usagiModel, 'Usagi', true);
+
+                // --- GẮN GẬY THẬT TỪ FILE .glb (ĐẶT ĐÚNG TAY PHẢI) ---
+                loader.load('billiard_cue.glb', function(gltfCue) {
+                    const cue = gltfCue.scene;
+                    
+                    // TỌA ĐỘ CẦN CHỈNH:
+                    // X = -0.1 (Tay phải), Y = 0.5 (Tầm ngang ngực), Z = 0.2 (Đưa gậy ra trước)
+                    cue.position.set(0.6, 0.6, -0.2); 
+                    cue.rotation.set(0, Math.PI/2, Math.PI/4); // Xoay dọc gậy
+                    
+                    // Nếu gậy vẫn to/nhỏ quá, sếp chỉnh số ở đây:
+                    cue.scale.set(1, 1, 1); 
+                    
+                    usagiPivot.add(cue);
+                    usagiPivot.userData.cue = cue; 
+                    console.log("Đã gắn gậy vào tay phải Usagi!");
+                });
             },
             undefined, 
             function (error) {
@@ -756,7 +719,7 @@ table.add(bottomMesh);
         const cabinetTexture = textureLoader.load('wine_cabin.jpg'); 
 
         // Giữ nguyên kích thước bề thế (Rộng 2.6m, Cao 2.0m)
-        const cabinetGeo = new THREE.BoxGeometry(2.6, 2.4, 0.01);
+        const cabinetGeo = new THREE.BoxGeometry(2.6, 2.4, 0.001);
         
         // THẦN CHÚ: Sử dụng MeshBasicMaterial để lột bỏ hoàn toàn tác động của đèn scene
         const cabinetMat = new THREE.MeshBasicMaterial({
@@ -766,7 +729,7 @@ table.add(bottomMesh);
         const wineCabinet2D = new THREE.Mesh(cabinetGeo, cabinetMat);
 
         // ĐỊNH VỊ: Ép sát sạt vào vách sau (Z = 4.95 để không bị lún hẳn ra sau tường Z = 5)
-        wineCabinet2D.position.set(-1.3, 1.2, 4.95);
+        wineCabinet2D.position.set(-1.3, 1.2, 4.99);
 
         // XOAY HƯỚNG: Quay mặt có ảnh tủ rượu vào trong phòng bi-a
         wineCabinet2D.rotation.y = Math.PI; 
@@ -975,29 +938,68 @@ table.add(bottomMesh);
             }
         );
         // --- 6.7. LOAD CÂY NƯỚC / TỦ LẠNH (WATER FRIDGE) VÀO GÓC PHÒNG ---
+        // --- CHUYỂN HỘ KHẨU HACHIWARE SANG PHÒNG KHÁCH ---
         loader.load(
             'hachiware.glb',
             function (gltf) {
                 const hachiware = gltf.scene;
 
-                // ĐẶT VÀO GÓC CHẾT: Sát tường trái (X = -2.5), nằm giữa giá gậy và sofa (Z = -3.2)
-                hachiware.position.set(2, 0.73, 4);
+                // 1. CHỈNH LẠI VỊ TRÍ (POSITION)
+                hachiware.position.set(-1.0, 1.2, -1.8);
 
-                // XOAY HƯỚNG: Chếch một góc 45 độ (Math.PI / 4) hướng mặt ra giữa phòng 
-                // nhìn sẽ nghệ thuật và tự nhiên hơn là kê thẳng tuột vào tường
-                hachiware.rotation.y = Math.PI/2;
+                // 2. CHỈNH LẠI HƯỚNG MẶT (ROTATION)
+                // Đổi từ Math.PI thành 0 để bé quay mặt thẳng ra giữa phòng. 
+                // Cộng thêm một chút góc (Math.PI / 12) để bé hơi nghiêng đầu nhìn sang phải trông tự nhiên hơn.
+                hachiware.rotation.y = 0 + (3*Math.PI / 2); 
+                
                 hachiware.scale.set(1.1, 1.5, 1.3);
 
                 hachiwareModel = hachiware; 
-                // Giữ gốc Y để nhảy không bị lún sàn
-                hachiwareModel.userData.baseY = hachiware.position.y; 
-                billiardRoomGroup.add(hachiware);
-                console.log("Đã cho Hachiware vào!");
+                
+                // Thêm vào phòng khách
+                LivingRoomGroup.add(hachiware);
+                
+                // QUAN TRỌNG: Lưu lại tọa độ Y mới của mặt ghế sofa để khi sếp click cho bé nhảy, bé sẽ rơi trúng nệm chứ không rơi xuyên xuống đất.
+                hachiwareModel.userData.baseY = 1.2; 
+
+                console.log("Đã vớt Hachiware lên khỏi sàn và cho ngồi đệm!");
                 makeInteractable(hachiwareModel, 'Hachiware', true);
             },
             undefined,
             function (error) {
-                console.error("Lỗi không load được Hachiware sếp ơi: ", error);
+                console.error("Lỗi không load được Hachiware: ", error);
+            }
+        );
+        // --- LOAD MIKU VÀO PHÒNG KHÁCH ---
+        loader.load(
+            'hatsune_miku.glb',
+            function (gltf) {
+                const miku = gltf.scene;
+
+                // Đặt đứng cạnh Hachiware trên sofa (ví dụ lệch sang phải một chút)
+                miku.position.set(-2, 0.5, -1.8); 
+                
+                // Xoay mặt nhìn ra ngoài giống Hachiware
+                miku.rotation.y = Math.PI / 4;
+                
+                // Miku thường là model người thật nên scale có thể khác, sếp chỉnh con số này cho vừa ý nhé
+                miku.scale.set(0.01, 0.01, 0.01); 
+
+                LivingRoomGroup.add(miku);
+                
+                // Lưu lại mốc Y để bé cũng nhảy tại chỗ như Hachiware
+                miku.userData.baseY = miku.position.y;
+                
+                console.log("Miku đã xuất hiện tại phòng khách!");
+                makeInteractable(miku, 'Hatsune Miku', true);
+                
+                // Đẩy vào mảng để animate() nhận diện
+                // Sếp thêm dòng này vào đầu file khai báo biến nếu cần: let mikuModel = null;
+                mikuModel = miku; 
+            },
+            undefined,
+            function (error) {
+                console.error("Lỗi không load được Miku: ", error);
             }
         );
         // =================================================================
@@ -1056,6 +1058,7 @@ table.add(bottomMesh);
                 stool.scale.set(1, 1, 1);
 
                 billiardRoomGroup.add(stool);
+                stoolModel = stool;
                 console.log("Ghế đẩu thành công!");
                 makeInteractable(stool, 'Stool', false);
             },
@@ -1112,41 +1115,96 @@ table.add(bottomMesh);
             undefined,
             function (error) {
                 console.error("Lỗi load phòng khách: ", error); 
+                makeInteractable(living, 'Living Room Furniture', false);
             }
         );
+        // BƯỚC MỚI: DỰNG TV TREO TƯỜNG PHÒNG KHÁCH (DÁN ẢNH RONALDO)
+    // =================================================================
+    // 1. Tạo hình dáng TV
+const tvGeo = new THREE.BoxGeometry(2.0, 1.2, 0.05);
+
+// 2. Nạp ảnh và CHỈNH CHIỀU ẢNH
+const ronaldoTex = textureLoader.load('ronaldo.jpg'); 
+// Lệnh này quan trọng: lật ngược lại theo trục Y để ảnh đứng thẳng
+ronaldoTex.flipY = true; 
+
+const tvMat = new THREE.MeshBasicMaterial({ 
+    map: ronaldoTex, 
+    side: THREE.DoubleSide 
+});
+
+const tvScreen = new THREE.Mesh(tvGeo, tvMat);
+
+// 3. ĐỊNH VỊ VÀ XOAY
+// Nếu ảnh vẫn bị ngược khi treo trên tường, sếp hãy đổi rotation thành Math.PI/2 hoặc -Math.PI/2
+tvScreen.position.set(0, 1.8, 3.8); 
+tvScreen.rotation.y = Math.PI; 
+
+// THÊM DÒNG NÀY ĐỂ LẬT ẢNH LẠI NẾU ĐANG BỊ NGƯỢC:
+tvScreen.rotation.z = Math.PI; 
+
+LivingRoomGroup.add(tvScreen);
+makeInteractable(tvScreen, 'Ronaldo TV', false);
+
+// =================================================================
+// DỰNG TRANH WORLDCUP TREO TƯỜNG PHẢI PHÒNG KHÁCH
+// =================================================================
+
+// 1. Tạo mặt phẳng tranh (Rộng 1.5m, Cao 1.0m)
+const worldcupGeo = new THREE.PlaneGeometry(1.5, 1.0);
+
+// 2. Nạp ảnh World Cup
+const worldcupTex = textureLoader.load('worldcup.jpg'); // Đảm bảo tên file ảnh chính xác
+worldcupTex.flipY = true;
+
+const worldcupMat = new THREE.MeshBasicMaterial({ 
+    map: worldcupTex, 
+    side: THREE.DoubleSide 
+});
+
+const worldcupMesh = new THREE.Mesh(worldcupGeo, worldcupMat);
+
+// 3. ĐỊNH VỊ TRÊN TƯỜNG PHẢI
+// Tường phải nằm ở vị trí X dương. 
+// Đặt X = 3.05 để áp sát tường (độ dày 0.05).
+// Đặt Y = 1.5 (tầm mắt).
+// Đặt Z = 0 (giữa phòng).
+worldcupMesh.position.set(0.5, 1.5, -3.95);
+
+// 4. XOAY HƯỚNG
+// Xoay -90 độ quanh trục Y để mặt tranh quay vào trong phòng
+worldcupMesh.rotation.y = -Math.PI;
+
+LivingRoomGroup.add(worldcupMesh);
+makeInteractable(worldcupMesh, 'World Cup Poster', false);
+
+console.log("Ảnh World Cup đã được treo sang tường phải!");
 
         // =================================================================
-        // BƯỚC MỚI: DỰNG TẦNG TRỆT BỂ BƠI (NẰM SÂU DƯỚI Y = -3.5)
-        // =================================================================
-        const PoolRoomGroup = new THREE.Group();
-        // Căn phòng phía trên kéo dài từ Z = -5 đến Z = 15. Ta đặt tâm bể bơi ở giữa (Z = 5).
-        // Hạ độ cao xuống Y = -3.5 để làm tầng dưới.
-        PoolRoomGroup.position.set(0, -3.5, 5); 
-        scene.add(PoolRoomGroup);
+// DỰNG TẦNG TRỆT BỂ BƠI
+// =================================================================
+const PoolRoomGroup = new THREE.Group();
+PoolRoomGroup.position.set(0, -3.5, 5); 
+scene.add(PoolRoomGroup);
 
-        // 1. CHẤT LIỆU CHO BỂ BƠI
-        const tileMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 2.0 }); // Gạch nhám viền hồ
-        const poolWallMat = new THREE.MeshStandardMaterial({ color: 0x4fc3f7, roughness: 2.0 }); // Gạch lát lòng hồ bơi (màu xanh lơ)
-        const waterMat = new THREE.MeshStandardMaterial({ 
-            color: 0x00e5ff, 
-            transparent: true, 
-            opacity: 0.7,  // Độ trong suốt của nước
-            roughness: 0.1,
-            metalness: 0.3
-        });
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 2.0 }); // Tường nhà hầm tối màu
+// 1. CHẤT LIỆU CHO BỂ BƠI (Chỉ khai báo 1 lần duy nhất)
+// =================================================================
+const tileMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 2.0 }); 
+const poolWallMat = new THREE.MeshStandardMaterial({ color: 0xffd1dc, roughness: 0.6 }); // Đá hồng nhạt
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 2.0 }); // Tường hầm tối màu
+// =================================================================
+// 2. DỰNG TƯỜNG BAO QUANH TẦNG HẦM
+// =================================================================
+// Tường trái hầm
+const poolWallLeft = new THREE.Mesh(new THREE.PlaneGeometry(20, 3.5), wallMat);
+poolWallLeft.rotation.y = Math.PI / 2;
+poolWallLeft.position.set(-3, 1.75, 0);
+PoolRoomGroup.add(poolWallLeft);
 
-        // 2. DỰNG TƯỜNG BAO QUANH TẦNG HẦM (Dài 20m, Rộng 6m, Cao 3.5m)
-        // Tường trái hầm
-        const poolWallLeft = new THREE.Mesh(new THREE.PlaneGeometry(20, 3.5), wallMat);
-        poolWallLeft.rotation.y = Math.PI / 2;
-        poolWallLeft.position.set(-3, 1.75, 0);
-        PoolRoomGroup.add(poolWallLeft);
-        
-        // Tường sau hầm
-        const poolWallBack = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.5), wallMat);
-        poolWallBack.position.set(0, 1.75, -10);
-        PoolRoomGroup.add(poolWallBack);
+// Tường sau hầm
+const poolWallBack = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.5), wallMat);
+poolWallBack.position.set(0, 1.75, -10);
+PoolRoomGroup.add(poolWallBack);
 
 // =================================================================
         // 3. XÂY SÀN GẠCH (TẠO SẢNH DECK DÀI 8M ĐỂ ĐẶT CẦU TRƯỢT)
@@ -1285,17 +1343,89 @@ table.add(bottomMesh);
                 console.error("Lỗi lắp đặt ghế bể bơi: ", error);
             }
         );
+            // Load tất cả vào nhóm PoolRoomGroup
+// === CÁ MẬP BƠI VÒNG QUANH BỂ ===
+loader.load('shark.glb', (gltf) => {
+    sharkModel = gltf.scene;
+    sharkModel.scale.set(0.2, 0.2, 0.2);
+    sharkModel.position.set(0.5, -0.7, 0);
+    PoolRoomGroup.add(sharkModel);
+    console.log("Cá mập đã vào bể!");
+});
 
+// === DORAEMON BẮT ĐẦU TỪ ĐỈNH CẦU TRƯỢT ===
+loader.load('doraemon.glb', (gltf) => {
+    doraemonModel = gltf.scene;
+    doraemonModel.scale.set(1, 1, 1);
+    // slide.glb: position(-0.5,0,-5), scale 0.4 → đỉnh slide ≈ Y=1.6, Z=-6.5 (local PoolRoomGroup)
+    doraemonModel.position.set(-0.5, 1.6, -6.5);
+    doraemonModel.rotation.set(-0.8, Math.PI, 0); // Ngửa mặt lên trên, quay về hướng bể
+    PoolRoomGroup.add(doraemonModel);
+    console.log("Doraemon đã lên đỉnh cầu trượt!");
+});
+
+// Hệ thống hạt nước bắn lên khi Doraemon nhảy xuống bể
+const splashGeo = new THREE.SphereGeometry(0.04, 6, 6);
+const splashMat = new THREE.MeshBasicMaterial({ color: 0xaaddff, transparent: true, opacity: 0.8 });
+for (let i = 0; i < 20; i++) {
+    const drop = new THREE.Mesh(splashGeo, splashMat.clone());
+    drop.visible = false;
+    drop.userData = { vx: 0, vy: 0, vz: 0, active: false };
+    PoolRoomGroup.add(drop);
+    splashParticles.push(drop);
+}
+
+// --- NƯỚC BỂ BƠI LẤP ĐẦY VÀ ĐẬM MÀU ---
+// Dùng BoxGeometry thay cho Plane để nước có độ dày, lấp đầy lòng bể tốt hơn
+const waterGeo = new THREE.BoxGeometry(3.9, 0.8, 17.4); 
+const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x004a7c, // Xanh dương đậm (Deep Blue)
+    transparent: true,
+    opacity: 0.85,   // Tăng độ đặc để nhìn sâu và tối hơn
+    roughness: 0.05, // Siêu bóng
+    metalness: 0.2
+});
+
+poolWater = new THREE.Mesh(waterGeo, waterMat);
+// Đặt Y = -0.5 để nó nằm giữa độ cao lòng hồ (-1.0 đến 0)
+poolWater.position.set(0.5, -0.5, 0.8); 
+poolWater.receiveShadow = true;
+PoolRoomGroup.add(poolWater);
+
+// Lưu vị trí đỉnh gốc của nước để tính sóng
+const waterOrigPositions = poolWater.geometry.attributes.position.array.slice();
+
+// === ĐÈN CHIẾU XA ĐỂ TẠO BÓNG DƯỚI NƯỚC ===
+const poolSunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+poolSunLight.position.set(2, 5, 2);
+poolSunLight.castShadow = true;
+poolSunLight.shadow.mapSize.width = 1024;
+poolSunLight.shadow.mapSize.height = 1024;
+PoolRoomGroup.add(poolSunLight);
+
+// Mặt phản chiếu ánh sáng dưới đáy bể (caustic effect giả)
+const poolFloorGeo = new THREE.PlaneGeometry(4.0, 17.5);
+const poolFloorMat = new THREE.MeshStandardMaterial({
+    color: 0x88ccff,
+    roughness: 0.8,
+    metalness: 0.0
+});
+const poolFloorMesh = new THREE.Mesh(poolFloorGeo, poolFloorMat);
+poolFloorMesh.rotation.x = -Math.PI / 2;
+poolFloorMesh.position.set(0.5, -1.5, 0.8);
+poolFloorMesh.receiveShadow = true;
+PoolRoomGroup.add(poolFloorMesh);
 // =================================================================
         // BƯỚC MỚI: DỰNG CỘT THANG MÁY KHỐI HỘP ÔM KHÍT 3 MẶT TƯỜNG
         // =================================================================
-        
         // 1. Xây "Đảo hạ cánh" giữa lòng bể bơi. 
         // Kéo dài cho vừa khít khoảng trống 2m (Z=2) và ép sát mép trái
         const elevatorPillar = new THREE.Mesh(
-            new THREE.BoxGeometry(1.5, 1.5, 2.0), 
-            poolWallMat 
-        );
+    new THREE.BoxGeometry(1.5, 1.5, 2.0), 
+    poolWallMat // Gọi đúng biến đã khai báo ở trên
+);
+elevatorPillar.position.set(-2.25, -0.75, 1); 
+PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
         // Tâm thang máy đặt ở X = -2.25 (để lưng chạm đúng tọa độ X = -3 của mép nhà)
         elevatorPillar.position.set(-2.25, -0.75, 1); 
         PoolRoomGroup.add(elevatorPillar);
@@ -1476,16 +1606,10 @@ table.add(bottomMesh);
         function animate() {
             requestAnimationFrame(animate);
 
-            // CHỈ TỰ ĐỘNG DI CHUYỂN KHI CÓ LỆNH BAY (BẤM NÚT)
             if (isTransitioning) {
                 camera.position.lerp(targetView.position, 0.05);
                 controls.target.lerp(targetView.target, 0.05);
-
-                // Kiểm tra nếu khoảng cách đến mục tiêu đã rất gần (dưới 0.01m) thì dừng hẳn bay
-                if (camera.position.distanceTo(targetView.position) < 0.01 && 
-                    controls.target.distanceTo(targetView.target) < 0.01) {
-                    isTransitioning = false; // Trả lại quyền tự do hoàn toàn cho chuột
-                }
+                if (camera.position.distanceTo(targetView.position) < 0.01) isTransitioning = false;
             }
 
             controls.update();
@@ -1514,48 +1638,97 @@ table.add(bottomMesh);
                     }
                 }
             });
-        // --- CHIIKAWA ĐI TUẦN ---
-        updateMovement(chiikawaModel, 'chiikawa');
-
-        // --- HACHIWARE NHẢY CỔ VŨ ---
+        // --- HACHIWARE & MIKU NHẢY CỔ VŨ ---
+        const time = Date.now() * 0.005; 
+        const jumpHeight = 0.2; 
+        
         if (hachiwareModel && hachiwareModel.userData.baseY !== undefined) {
-            const time = Date.now() * 0.005; 
-            const jumpHeight = 0.2; // Độ cao cú nhảy
             hachiwareModel.position.y = hachiwareModel.userData.baseY + Math.abs(Math.sin(time)) * jumpHeight;
         }
+        
+        if (mikuModel && mikuModel.userData.baseY !== undefined) {
+            mikuModel.position.y = mikuModel.userData.baseY + Math.abs(Math.sin(time)) * jumpHeight;
+        }
 
-        // --- USAGI LẬT BÀN (KỊCH BẢN 600 FRAMES) ---
-        if (usagiModel && tableGroup) {
+        // --- SIÊU KỊCH BẢN: CHIIKAWA ĐẨY GHẾ -> USAGI NHẢY LÊN GHẾ -> LÊN BÀN -> LẬT (700 frames) ---
+        if (usagiModel && tableGroup && chiikawaModel && stoolModel) {
             flipTimer++;
             const uGroundY = usagiModel.userData?.groundY || 0.02;
             const uTableY = usagiModel.userData?.tableY || 1.15;
+            const stoolHeight = 0.45; // Chiều cao ước tính của mặt ghế đẩu
 
-            if (flipTimer < 60) {
-                // Nhún nhẩy chuẩn bị
-                usagiModel.position.y = uGroundY + Math.abs(Math.sin(flipTimer * 0.2)) * 0.05;
-            } else if (flipTimer < 90) {
-                // Nhảy lên bàn
-                const jump = (flipTimer - 60) / 30; 
-                const heightDiff = uTableY - uGroundY;
-                const arc = Math.sin(jump * Math.PI) * Math.max(0.3, heightDiff * 0.5);
+            // Tọa độ gốc cho Chiikawa và Ghế
+            const stoolStartX = -2.5, stoolStartZ = 4.5;
+            
+            // SỬA Ở ĐÂY: Đẩy vị trí ghế ra xa hơn một chút (ví dụ: Z = 2.1 thay vì 1.8)
+            const stoolEndX = 0, stoolEndZ = 2.1; 
+            
+            // Chiikawa cũng cần dừng lại ở vị trí xa hơn để nhường chỗ
+            const chiikawaStartX = -2.5, chiikawaStartZ = 4.9; 
+            const chiikawaEndX = 0, chiikawaEndZ = 2.5; // Xa hơn Z = 2.2
+            if (flipTimer < 120) {
+                // GIAI ĐOẠN 1 (0 -> 120): Chiikawa hì hục đẩy ghế từ góc phòng ra cho Usagi
+                const progress = flipTimer / 120;
                 
-                usagiModel.position.y = uGroundY + arc + jump * heightDiff;
-                usagiModel.position.z = 2.5 - (jump * 1.6); 
-                usagiModel.rotation.x = -Math.PI / 12 * jump;
-            } else if (flipTimer < 150) {
-                // Ngồi thủ thế
+                // Ghế trượt tới
+                stoolModel.position.x = stoolStartX + (stoolEndX - stoolStartX) * progress;
+                stoolModel.position.z = stoolStartZ + (stoolEndZ - stoolStartZ) * progress;
+                
+                // Chiikawa đi theo sau đẩy
+                chiikawaModel.position.x = chiikawaStartX + (chiikawaEndX - chiikawaStartX) * progress;
+                chiikawaModel.position.z = chiikawaStartZ + (chiikawaEndZ - chiikawaStartZ) * progress;
+                
+                // Chiikawa quay mặt về hướng di chuyển
+                const angle = Math.atan2(stoolEndX - stoolStartX, stoolEndZ - stoolStartZ);
+                chiikawaModel.rotation.y = angle;
+
+                // Tạo hiệu ứng Chiikawa nhún nhảy khi bước đi
+                chiikawaModel.position.y = 0.77 + Math.abs(Math.sin(flipTimer * 0.3)) * 0.05;
+
+                // Usagi nhún nhảy tại chỗ chờ đợi
+                usagiModel.position.y = uGroundY + Math.abs(Math.sin(flipTimer * 0.2)) * 0.05;
+                usagiModel.position.z = 1.8;
+                usagiModel.rotation.x = 0;
+                
+            } else if (flipTimer < 160) {
+                // GIAI ĐOẠN 2 (120 -> 160): Usagi nhảy phóc lên ghế đẩu
+                const jump = (flipTimer - 120) / 40;
+                const arc = Math.sin(jump * Math.PI) * 0.5; // Quỹ đạo vòng cung
+                
+                usagiModel.position.y = uGroundY + arc + (jump * stoolHeight);
+                usagiModel.position.z = 1.8; 
+                
+                // Chiikawa dừng lại và đứng xem
+                chiikawaModel.position.y = 0.77;
+
+            } else if (flipTimer < 200) {
+                // GIAI ĐOẠN 3 (160 -> 200): Usagi lấy đà nhảy từ ghế đẩu lên mặt bàn
+                const jump = (flipTimer - 160) / 40;
+                const startY = uGroundY + stoolHeight;
+                const heightDiff = uTableY - startY;
+                const arc = Math.sin(jump * Math.PI) * 0.4;
+                
+                usagiModel.position.y = startY + arc + (jump * heightDiff);
+                usagiModel.position.z = 1.8 - (jump * 0.9); // Bay từ ghế (Z=1.8) vào mặt bàn (Z=0.9)
+                usagiModel.rotation.x = -Math.PI / 12 * jump; // Hơi chúi người về trước tạo đà
+
+            } else if (flipTimer < 240) {
+                // GIAI ĐOẠN 4 (200 -> 240): Usagi ngồi xổm tụ lực trên bàn
                 usagiModel.position.x = 0; 
                 usagiModel.position.y = uTableY + 0.02; 
-            } else if (flipTimer < 180) {
-                // LẬT BÀN
-                const progress = (flipTimer - 150) / 30;
+                usagiModel.position.z = 0.9 + Math.sin(flipTimer * 0.5) * 0.02; // Rung rinh tay
+
+            } else if (flipTimer < 270) {
+                // GIAI ĐOẠN 5 (240 -> 270): LẬT BÀN VÀ VĂNG RA SAU
+                const progress = (flipTimer - 240) / 30;
                 tableGroup.rotation.x = progress * Math.PI / 4;
                 usagiModel.rotation.x = (-Math.PI / 8 - (progress * Math.PI / 2)) + 1;
+
                 usagiModel.position.y = uTableY + 0.02 - progress * (uTableY - uGroundY);
                 usagiModel.position.z = 0.9 + (progress * 1.0);
                 
-                // Nổ bi
-                if (flipTimer === 150) {
+                // Nổ lực văng bi
+                if (flipTimer === 240) {
                     customBalls.forEach(ball => {
                         ball.userData.velocity.set(
                             (Math.random() - 0.5) * 0.05, 
@@ -1564,60 +1737,223 @@ table.add(bottomMesh);
                         );
                     });
                 }
-            } else if (flipTimer >= 600) {
-                // RESET
+            } else if (flipTimer >= 700) {
+                // GIAI ĐOẠN 6: TRẢ MỌI THỨ VỀ VỊ TRÍ BAN ĐẦU
                 flipTimer = 0;
                 tableGroup.rotation.x = 0;
+                
                 usagiModel.rotation.set(0, -2 * Math.PI, 0); 
-                usagiModel.position.set(0, uGroundY, 2.5); 
+                usagiModel.position.set(0, uGroundY, 1.8); 
+                
+                stoolModel.position.set(-2.5, 0, 4.5); // Trả ghế về góc
+                chiikawaModel.position.set(-2.5, 0.77, 4.9); // Trả Chiikawa về sau ghế
+                
                 resetBalls();
             }
 
-            // Vật lý rơi và va chạm của các viên bi
-            if (flipTimer > 150 && flipTimer < 600) {
+            // --- VẬT LÝ CỦA CÁC VIÊN BI (Chạy độc lập sau khi hất bàn) ---
+            if (flipTimer > 240 && flipTimer < 700) {
                 customBalls.forEach(ball => {
-                    ball.userData.velocity.y -= 0.003; // Trọng lực
+                    ball.userData.velocity.y -= 0.003; 
                     ball.position.add(ball.userData.velocity);
 
                     const radius = 0.04;
+                    const ceilingHeight = 2.5 - radius; 
 
-                    // 1. Va chạm với mặt sàn và TRẦN NHÀ (Trục Y)
-                    const ceilingHeight = 2.5 - radius; // Trần nhà cao 2.5m
-
-                    if (ball.position.y <= radius) { // Đập mặt sàn
+                    // Va chạm Y (Sàn và Trần)
+                    if (ball.position.y <= radius) { 
                         ball.position.y = radius; 
-                        ball.userData.velocity.y *= -0.65; // Nảy lên
-                        ball.userData.velocity.x *= 0.98;  // Ma sát sàn làm chậm bi
+                        ball.userData.velocity.y *= -0.65; 
+                        ball.userData.velocity.x *= 0.98;  
                         ball.userData.velocity.z *= 0.98;
-                    } else if (ball.position.y >= ceilingHeight) { // Đập trần nhà
+                    } else if (ball.position.y >= ceilingHeight) { 
                         ball.position.y = ceilingHeight;
-                        ball.userData.velocity.y *= -0.65; // Bật dội ngược xuống dưới
+                        ball.userData.velocity.y *= -0.65; 
                     }
 
-                    // 2. Va chạm với các bức tường (Trục X và Z)
-                    const boundX = 3.0 - radius; // Mép tường trái/phải
-                    const boundZ = 5.0 - radius; // Mép tường trước/sau
+                    // Va chạm X, Z (Bức tường phòng Bi-a)
+                    const boundX = 3.0 - radius; 
+                    const boundZ = 5.0 - radius; 
 
-                    // Đập tường Trái / Phải (Trục X)
                     if (ball.position.x < -boundX) {
-                        ball.position.x = -boundX; 
-                        ball.userData.velocity.x *= -0.8; 
+                        ball.position.x = -boundX; ball.userData.velocity.x *= -0.8; 
                     } else if (ball.position.x > boundX) {
-                        ball.position.x = boundX;
-                        ball.userData.velocity.x *= -0.8;
+                        ball.position.x = boundX; ball.userData.velocity.x *= -0.8;
                     }
-
-                    // Đập tường Trước / Sau (Trục Z)
                     if (ball.position.z < -boundZ) {
-                        ball.position.z = -boundZ;
-                        ball.userData.velocity.z *= -0.8;
+                        ball.position.z = -boundZ; ball.userData.velocity.z *= -0.8;
                     } else if (ball.position.z > boundZ) {
-                        ball.position.z = boundZ;
-                        ball.userData.velocity.z *= -0.8;
+                        ball.position.z = boundZ; ball.userData.velocity.z *= -0.8;
                     }
                 });
             }
         }
+        // --- 1. HIỆU ỨNG SÓNG NƯỚC THẬT (biến dạng đỉnh theo hình sin) ---
+        if (poolWater && waterOrigPositions) {
+            const wt = Date.now() * 0.0015;
+            const pos = poolWater.geometry.attributes.position.array;
+            for (let i = 0; i < pos.length; i += 3) {
+                const ox = waterOrigPositions[i];
+                const oz = waterOrigPositions[i + 2];
+                pos[i + 1] = Math.sin(ox * 1.2 + wt) * 0.04
+                           + Math.sin(oz * 0.8 + wt * 1.3) * 0.03
+                           + Math.sin((ox + oz) * 0.6 + wt * 0.9) * 0.02;
+            }
+            poolWater.geometry.attributes.position.needsUpdate = true;
+            poolWater.geometry.computeVertexNormals();
+            poolWater.material.opacity = 0.70 + Math.sin(wt * 2) * 0.05;
+        }
+
+        // --- 2. CÁ MẬP BƠI VÒNG QUANH BỂ (ellipse ôm sát hình bể) ---
+        if (sharkModel) {
+            const st = Date.now() * 0.00035;
+            const rx = 1.55, rz = 7.2;
+            const cx = 0.5, cz = 0.8;
+            const sa = st, na = st + 0.06;
+            const sx = cx + Math.cos(sa) * rx;
+            const sz = cz + Math.sin(sa) * rz;
+            const nx = cx + Math.cos(na) * rx;
+            const nz = cz + Math.sin(na) * rz;
+            sharkModel.position.set(sx, -0.6, sz);
+            const angle = Math.atan2(nx - sx, nz - sz);
+            sharkModel.rotation.set(0, angle + Math.sin(st * 10) * 0.08, 0);
+        }
+
+        // --- 3. HẠT NƯỚC BẮN LÊN ---
+        splashParticles.forEach(drop => {
+            if (drop.userData.active) {
+                drop.userData.vy -= 0.015;
+                drop.position.x += drop.userData.vx;
+                drop.position.y += drop.userData.vy;
+                drop.position.z += drop.userData.vz;
+                drop.material.opacity -= 0.018;
+                if (drop.material.opacity <= 0) {
+                    drop.visible = false;
+                    drop.userData.active = false;
+                }
+            }
+        });
+
+        // --- 4. DORAEMON: KỊCH BẢN HOÀN CHỈNH --
+
+        if (doraemonModel) {
+            const CYCLE = 20;
+            const dt = (Date.now() * 0.001) % CYCLE;
+
+            if (dt < 3.0) {
+                // GIAI ĐOẠN 1: TRƯỢT XUỐNG – ngửa mặt lên trên
+                const p = dt / 3.0;
+                const e = p * p * (3 - 2 * p);
+                // Từ đỉnh (-0.5, 1.6, -6.5) → chân cầu trượt (-0.5, 0.05, -3.5)
+                doraemonModel.position.x = -0.5;
+                doraemonModel.position.y = 1.6 - e * 1.55;
+                doraemonModel.position.z = -6.5 + e * 3.0;
+                // rotation.x âm = ngửa mặt lên (đầu ngả ra sau)
+                doraemonModel.rotation.x = -0.8 + e * 0.3; // Bắt đầu ngửa, dần ít hơn
+                doraemonModel.rotation.y = Math.PI;
+                doraemonModel.rotation.z = 0;
+                doraemonModel.userData.phase = 'slide';
+
+            } else if (dt < 4.0) {
+                // GIAI ĐOẠN 2: RƠI VÀO BỂ + BẮN NƯỚC
+                const p = (dt - 3.0) / 1.0;
+                doraemonModel.position.x = -0.5;
+                doraemonModel.position.y = 0.05 - p * 0.6; // Chìm xuống
+                doraemonModel.position.z = -3.5;
+                doraemonModel.rotation.x = -0.5 + p * 1.2;
+                doraemonModel.rotation.y = Math.PI;
+
+                if (dt > 3.05 && dt < 3.25 && doraemonModel.userData.phase !== 'splash') {
+                    doraemonModel.userData.phase = 'splash';
+                    splashParticles.forEach((drop, i) => {
+                        drop.position.set(-0.5, 0.0, -3.5);
+                        const a = (i / splashParticles.length) * Math.PI * 2;
+                        drop.userData.vx = Math.cos(a) * (0.07 + Math.random() * 0.1);
+                        drop.userData.vy = 0.2 + Math.random() * 0.2;
+                        drop.userData.vz = Math.sin(a) * (0.07 + Math.random() * 0.1);
+                        drop.userData.active = true;
+                        drop.material.opacity = 0.95;
+                        drop.visible = true;
+                    });
+                }
+
+            } else if (dt < 7.0) {
+                // GIAI ĐOẠN 3: BƠI TRONG BỂ từ Z=-3.5 → Z=2
+                const p = (dt - 4.0) / 3.0;
+                const e = p * p * (3 - 2 * p);
+                doraemonModel.position.x = -0.5 + e * 1.25; // Bơi chéo sang bờ sảnh
+                doraemonModel.position.y = -0.3 + e * 0.35; // Nổi dần lên
+                doraemonModel.position.z = -3.5 + e * 5.5;
+                doraemonModel.rotation.x = 0.15;
+                doraemonModel.rotation.y = 0; // Mặt hướng Z+ (về bờ)
+                doraemonModel.rotation.z = Math.sin(dt * 5) * 0.15;
+                doraemonModel.userData.phase = 'swim';
+
+            } else if (dt < 8.0) {
+                // GIAI ĐOẠN 4: LEO LÊN BỜ PHÍA PHẢI (Sát thành bể bên phải X ≈ 2.2)
+                const p = (dt - 7.0) / 1.0;
+                doraemonModel.position.x = 0.75 + p * 1.45; // Dịch sang phải (từ 0.75 ra 2.2)
+                doraemonModel.position.y = 0.05 + p * 0.05;
+                doraemonModel.position.z = 2.0;
+                doraemonModel.rotation.set(0, Math.PI, 0); // Nhìn thẳng về phía sau
+                doraemonModel.userData.phase = 'shore';
+
+            } else if (dt < 10.0) {
+                // GIAI ĐOẠN 5: ĐI BỘ DỌC MÉP PHẢI → hướng về cầu thang (đi ngược lên Z)
+                const p = (dt - 8.0) / 2.0;
+                doraemonModel.position.x = 2.2; // Giữ ở mép phải
+                doraemonModel.position.y = 0.1;
+                doraemonModel.position.z = 2.0 - p * 5.5; // Đi từ Z=2 về Z=-3.5
+                doraemonModel.rotation.set(0, Math.PI, 0); // Mặt hướng Z- (về cầu thang)
+                doraemonModel.userData.phase = 'walk';
+
+            } else if (dt < 11.0) {
+                // GIAI ĐOẠN 6: QUAY TRÁI để vào chân cầu thang
+                const p = (dt - 10.0) / 1.0;
+                doraemonModel.position.x = 2.2 - p * 1.7; // Rẽ trái (về X=0.5)
+                doraemonModel.position.y = 0.1;
+                doraemonModel.position.z = -3.5;
+                // Quay mặt từ hướng Z- sang hướng Z- (nhưng xoay người sang trái)
+                doraemonModel.rotation.y = Math.PI - (p * Math.PI / 2); 
+                doraemonModel.userData.phase = 'turn';
+
+            } else if (dt < 14.0) {
+                // GIAI ĐOẠN 7: LEO CẦU THANG
+                const p = (dt - 11.0) / 3.0;
+                doraemonModel.position.x = 0.5;
+                doraemonModel.position.y = (p * 1.5) + 0.1; 
+                doraemonModel.position.z = -3.5 - p * 2.5;
+                doraemonModel.rotation.set(-0.35, Math.PI, 0); // Cúi nhẹ leo thang
+                doraemonModel.userData.phase = 'climb';
+
+            } else if (dt < 16.0) {
+                // GIAI ĐOẠN 8: BƯỚC QUA PLATFORM ĐỈNH → ĐỆN CẦU TRƯỢT
+                const p = (dt - 14.0) / 2.0;
+                const e = p * p * (3 - 2 * p);
+                doraemonModel.position.x = 0.5 - e * 1.0; // Đi từ X=0.5 sang X=-0.5
+                doraemonModel.position.y = 1.6;
+                doraemonModel.position.z = -6.0 - e * 0.5; // Tiến vào đỉnh slide
+                doraemonModel.rotation.x = -e * 0.8; // Bắt đầu ngả người ngửa
+                doraemonModel.rotation.y = Math.PI;
+                doraemonModel.rotation.z = 0;
+                doraemonModel.userData.phase = 'top';
+
+            } else {
+                // GIAI ĐOẠN 9: NGỒI NGỬA (Tư thế trượt)
+                doraemonModel.position.set(-0.5, 1.6, -6.5);
+                // rotation.x = -1.2 giúp bé ngửa mặt lên trời (tư thế trượt chuẩn)
+                doraemonModel.rotation.set(-1.2, -Math.PI, 0); 
+                doraemonModel.userData.phase = 'wait';
+            }}
+        // --- HIỆU ỨNG SÓNG NƯỚC LẤP LÁNH ---
+if (poolWater) {
+    const time = Date.now() * 0.002;
+    // Làm cho bề mặt nước nhấp nhô nhẹ theo hàm sin
+    poolWater.position.y = -0.5 + Math.sin(time) * 0.02; 
+    
+    // Tạo hiệu ứng lấp lánh bằng cách thay đổi độ trong suốt nhẹ nhàng
+    poolWater.material.opacity = 0.8 + Math.sin(time * 2) * 0.05;
+}
             renderer.render(scene, camera);
         }
         animate();
