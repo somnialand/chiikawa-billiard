@@ -1148,119 +1148,118 @@ table.add(bottomMesh);
         poolWallBack.position.set(0, 1.75, -10);
         PoolRoomGroup.add(poolWallBack);
 
+// =================================================================
+        // 3. XÂY SÀN GẠCH (TẠO SẢNH DECK DÀI 8M ĐỂ ĐẶT CẦU TRƯỢT)
         // =================================================================
-        // 3. XÂY SÀN GẠCH (ĐỊNH HÌNH SẢNH LOUNGE VÀ BO VIỀN BỂ BƠI CHỮ U)
-        // =================================================================
-        // Sảnh chờ thang máy khổng lồ ở giữa (X từ -3 đến 0, Z từ -5 đến 5)
-        const centerLounge = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 10), tileMat);
-        centerLounge.position.set(-1.5, 0, 0);
-        PoolRoomGroup.add(centerLounge);
+        // Hành lang chạy dọc vách tường trái (Rộng 1.5m)
+        const leftTile = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 20), tileMat);
+        leftTile.position.set(-2.25, 0, 0);
+        PoolRoomGroup.add(leftTile);
 
-        // Viền sàn phía Tít Trong Cùng (Z = -9 và Z = 9)
-        const farBackTile = new THREE.Mesh(new THREE.BoxGeometry(6, 0.1, 2), tileMat);
-        farBackTile.position.set(0, 0, -9);
-        PoolRoomGroup.add(farBackTile);
+        // BỤC SẢNH DÀI: Từ cửa thang máy kéo dài ra để đặt cầu trượt (Rộng 2m, Dài 8m)
+        const loungeTile = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 8.0), tileMat);
+        loungeTile.position.set(-0.5, 0, 4.0); // Bao phủ khu vực từ Z = 0 đến Z = 8
+        PoolRoomGroup.add(loungeTile);
 
-        const farFrontTile = new THREE.Mesh(new THREE.BoxGeometry(6, 0.1, 2), tileMat);
-        farFrontTile.position.set(0, 0, 9);
-        PoolRoomGroup.add(farFrontTile);
-
-        // Viền sàn Phía Ngoài Mặt Tiền (X = 2.75)
-        const rightTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 16), tileMat);
+        // Viền phải (Rộng 0.5m)
+        const rightTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 20), tileMat);
         rightTile.position.set(2.75, 0, 0);
         PoolRoomGroup.add(rightTile);
 
-        // Viền sàn kẹp hai bên vách tường trái
-        const topLeftTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 3), tileMat);
-        topLeftTile.position.set(-2.75, 0, -6.5);
-        PoolRoomGroup.add(topLeftTile);
+        // Viền trước và sau
+        const frontTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 0.5), tileMat);
+        frontTile.position.set(0.5, 0, 9.75);
+        PoolRoomGroup.add(frontTile);
 
-        const bottomLeftTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 3), tileMat);
-        bottomLeftTile.position.set(-2.75, 0, 6.5);
-        PoolRoomGroup.add(bottomLeftTile);
+        const backTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 0.5), tileMat);
+        backTile.position.set(0.5, 0, -9.75);
+        PoolRoomGroup.add(backTile);
 
         // =================================================================
-        // 4. XÂY LÒNG BỂ BƠI CHỮ U (Gồm 3 khối ghép lại)
+        // 4. XÂY LÒNG BỂ BƠI (ÔM SÁT BỤC SẢNH)
         // =================================================================
-        // 4. LÒNG BỂ BƠI (Nâng đáy lên Y = -1.0 để hồ nông hơn, dễ ngâm mình)
-        const bottomMain = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 16), poolWallMat);
-        bottomMain.position.set(1.25, -1.0, 0); 
+        // ĐÁY HỒ (Nông Y = -1.0)
+        // Trục chính chạy dọc bên phải (Rộng 2.0m, Dài 19m)
+        const bottomMain = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 19), poolWallMat);
+        bottomMain.position.set(1.5, -1.0, 0);
         PoolRoomGroup.add(bottomMain);
 
-        const bottomWing1 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 3), poolWallMat);
-        bottomWing1.position.set(-1.25, -1.0, -6.5);
-        PoolRoomGroup.add(bottomWing1);
+        // Nhánh ngập nước Tít Phía Trong (Rộng 2.0m, Dài 9.5m)
+        const bottomTopWing = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 9.5), poolWallMat);
+        bottomTopWing.position.set(-0.5, -1.0, -4.75);
+        PoolRoomGroup.add(bottomTopWing);
 
-        const bottomWing2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 3), poolWallMat);
-        bottomWing2.position.set(-1.25, -1.0, 6.5);
-        PoolRoomGroup.add(bottomWing2);
+        // Nhánh ngập nước Phía Ngoài Mặt Tiền (Rộng 2.0m, Dài 1.5m)
+        const bottomBottomWing = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 1.5), poolWallMat);
+        bottomBottomWing.position.set(-0.5, -1.0, 8.75);
+        PoolRoomGroup.add(bottomBottomWing);
 
-        // Các thành hồ (Chỉ cần cao 1.0m là đủ che)
-        const pWallRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 16), poolWallMat);
+        // THÀNH HỒ BƠI (Cao 1.0m, chặn mép gạch)
+        const pWallRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 19), poolWallMat);
         pWallRight.position.set(2.45, -0.5, 0);
         PoolRoomGroup.add(pWallRight);
 
-        const pWallBack = new THREE.Mesh(new THREE.BoxGeometry(5, 1.0, 0.1), poolWallMat);
-        pWallBack.position.set(0, -0.75, -7.95);
+        const pWallBack = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 0.1), poolWallMat);
+        pWallBack.position.set(0.5, -0.5, -9.45);
         PoolRoomGroup.add(pWallBack);
 
-        const pWallFront = new THREE.Mesh(new THREE.BoxGeometry(5, 1.0, 0.1), poolWallMat);
-        pWallFront.position.set(0, -0.75, 7.95);
+        const pWallFront = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 0.1), poolWallMat);
+        pWallFront.position.set(0.5, -0.5, 9.45);
         PoolRoomGroup.add(pWallFront);
 
-        // Vách hồ chặn ngay mép sảnh thang máy (Tạo hình chữ U)
-        const pWallInnerLounge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 10), poolWallMat);
-        pWallInnerLounge.position.set(-0.05, -0.75, 0); // Vách dọc cản sảnh
-        PoolRoomGroup.add(pWallInnerLounge);
+        // Vách hồ áp sát hành lang trái
+        const pWallLeftTop = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 9.5), poolWallMat);
+        pWallLeftTop.position.set(-1.45, -0.5, -4.75);
+        PoolRoomGroup.add(pWallLeftTop);
 
-        const pWallInnerTop = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 0.1), poolWallMat);
-        pWallInnerTop.position.set(-1.25, -0.75, -4.95); // Vách cản sảnh trên
-        PoolRoomGroup.add(pWallInnerTop);
+        const pWallLeftBottom = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 1.5), poolWallMat);
+        pWallLeftBottom.position.set(-1.45, -0.5, 8.75);
+        PoolRoomGroup.add(pWallLeftBottom);
 
-        const pWallInnerBottom = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 0.1), poolWallMat);
-        pWallInnerBottom.position.set(-1.25, -0.75, 4.95); // Vách cản sảnh dưới
-        PoolRoomGroup.add(pWallInnerBottom);
+        // Vách hồ bao quanh BỤC SẢNH (Chặn nước khỏi tràn lên sảnh 2x8)
+        const pWallLoungeTop = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.1), poolWallMat);
+        pWallLoungeTop.position.set(-0.5, -0.5, 0.05);
+        PoolRoomGroup.add(pWallLoungeTop);
 
-        const pWallFarLeftTop = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 3), poolWallMat);
-        pWallFarLeftTop.position.set(-2.45, -0.75, -6.5);
-        PoolRoomGroup.add(pWallFarLeftTop);
+        const pWallLoungeBottom = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.1), poolWallMat);
+        pWallLoungeBottom.position.set(-0.5, -0.5, 7.95);
+        PoolRoomGroup.add(pWallLoungeBottom);
 
-        const pWallFarLeftBottom = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 3), poolWallMat);
-        pWallFarLeftBottom.position.set(-2.45, -0.75, 6.5);
-        PoolRoomGroup.add(pWallFarLeftBottom);
+        const pWallLoungeRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 8.0), poolWallMat);
+        pWallLoungeRight.position.set(0.45, -0.5, 4.0);
+        PoolRoomGroup.add(pWallLoungeRight);
 
         // =================================================================
         // 5. ĐỔ MẶT NƯỚC (Ghép 3 tấm Plane)
         // =================================================================
-        const waterMain = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 16), waterMat);
+        const waterMain = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 19), waterMat);
         waterMain.rotation.x = -Math.PI / 2;
-        waterMain.position.set(1.25, -0.1, 0);
+        waterMain.position.set(1.5, -0.1, 0);
         PoolRoomGroup.add(waterMain);
 
-        const waterWing1 = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 3), waterMat);
-        waterWing1.rotation.x = -Math.PI / 2;
-        waterWing1.position.set(-1.25, -0.1, -6.5);
-        PoolRoomGroup.add(waterWing1);
+        const waterTopWing = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 9.5), waterMat);
+        waterTopWing.rotation.x = -Math.PI / 2;
+        waterTopWing.position.set(-0.5, -0.1, -4.75);
+        PoolRoomGroup.add(waterTopWing);
 
-        const waterWing2 = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 3), waterMat);
-        waterWing2.rotation.x = -Math.PI / 2;
-        waterWing2.position.set(-1.25, -0.1, 6.5);
-        PoolRoomGroup.add(waterWing2);
+        const waterBottomWing = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.5), waterMat);
+        waterBottomWing.rotation.x = -Math.PI / 2;
+        waterBottomWing.position.set(-0.5, -0.1, 8.75);
+        PoolRoomGroup.add(waterBottomWing);
 
-        // 5.5. BẬC THANG BỂ BƠI (Kéo dài mỗi bậc thành 0.5m)
-        // Bậc 1 (Độ sâu -0.6)
+        // =================================================================
+        // 5.5. BẬC THANG BỂ BƠI (Dịch sang trục X=0.75 đâm thẳng từ sảnh xuống)
+        // =================================================================
         const step1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 2.0), poolWallMat);
-        step1.position.set(0.25, -0.7, 1); 
+        step1.position.set(0.75, -0.7, 2.0); 
         PoolRoomGroup.add(step1);
 
-        // Bậc 2 (Độ sâu -0.8)
         const step2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 2.0), poolWallMat);
-        step2.position.set(0.75, -0.8, 1);
+        step2.position.set(1.25, -0.8, 2.0);
         PoolRoomGroup.add(step2);
 
-        // Bậc 3 (Độ sâu -1.0 - chạm đáy)
         const step3 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 2.0), poolWallMat);
-        step3.position.set(1.25, -0.9, 1);
+        step3.position.set(1.75, -0.9, 2.0);
         PoolRoomGroup.add(step3);
 
         // 6. GẮN ĐÈN CHO BỂ BƠI TỎA SÁNG
@@ -1268,6 +1267,34 @@ table.add(bottomMesh);
         poolLight.position.set(0.5, 1, 0); // Dịch tâm đèn ra giữa hồ
         PoolRoomGroup.add(poolLight);
         makeInteractable(poolWater, 'Swimming Pool', false);
+
+        loader.load(
+            'slide.glb', // Tên file đã convert nhúng sẵn texture của bạn
+            function (gltf) {
+                const slide = gltf.scene;
+
+                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
+                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
+                slide.position.set(-0.5, 0, -5);
+                slide.scale.set(0.4,0.4,0.4);
+
+                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
+                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
+                slide.rotation.y = 0; 
+
+                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
+                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
+                // airConditioner.scale.set(1, 1, 1);
+
+                PoolRoomGroup.add(slide);
+                console.log("Cầu tuột đã lên vách sau ngon lành cành đào!");
+                makeInteractable(slide, 'Water Slide', false);
+            },
+            undefined,
+            function (error) {
+                console.error("Lỗi lắp đặt slide: ", error);
+            }
+        );
 
 // =================================================================
         // BƯỚC MỚI: DỰNG CỘT THANG MÁY KHỐI HỘP ÔM KHÍT 3 MẶT TƯỜNG
