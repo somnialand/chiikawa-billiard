@@ -11,46 +11,6 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: Arial, sans-serif;
         }
         .control-btn { display: block; width: 100%; margin-bottom: 8px; padding: 8px 12px; background-color: #9b2242; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        /* --- CSS CHO BẢNG ĐIỀU KHIỂN ÁNH SÁNG --- */
-        .light-control-panel {
-            position: fixed;
-            top: 20px;
-            right: 20px; /* Đặt bên phải màn hình cho đỡ vướng */
-            z-index: 100;
-            background: rgba(25, 25, 25, 0.85); /* Nền tối ngầu hơn */
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            font-family: Arial, sans-serif;
-            width: 220px;
-        }
-        .light-control-panel h3 {
-            margin: 0 0 15px 0;
-            font-size: 15px;
-            color: #ffcc00; /* Tiêu đề màu vàng */
-            text-align: center;
-            border-bottom: 1px solid #555;
-            padding-bottom: 10px;
-        }
-        .light-control-panel label {
-            display: block;
-            margin-bottom: 12px;
-            font-size: 13px;
-        }
-        .light-control-panel input[type="range"] {
-            width: 100%;
-            margin-top: 5px;
-            cursor: pointer;
-        }
-        .light-control-panel input[type="color"] {
-            width: 100%;
-            height: 35px;
-            border: none;
-            margin-top: 5px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
     </style>
     <script type="importmap">
       { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
@@ -64,24 +24,6 @@
         <button class="control-btn" id="btn-billiard">Phòng Bi-a</button>
         <button class="control-btn" id="btn-LivingRoom">Phòng Khách</button>
         <button class="control-btn" id="btn-Pool">Bể bơi</button>
-    </div>
-    <div class="light-control-panel">
-        <h3>💡 ĐIỀU CHỈNH ÁNH SÁNG</h3>
-        <label>🎨 Màu ánh sáng: 
-            <input type="color" id="lightColor" value="#ffffff">
-        </label>
-        <label>☀️ Cường độ: <span id="valIntensity">2.0</span>
-            <input type="range" id="lightIntensity" min="0" max="10" step="0.1" value="2.0">
-        </label>
-        <label>⬅️ Trục X (Trái/Phải): <span id="valX">5.0</span>
-            <input type="range" id="lightX" min="-20" max="20" step="0.5" value="5">
-        </label>
-        <label>⬆️ Trục Y (Cao/Thấp): <span id="valY">8.0</span>
-            <input type="range" id="lightY" min="0" max="30" step="0.5" value="8">
-        </label>
-        <label>↙️ Trục Z (Sâu/Nông): <span id="valZ">5.0</span>
-            <input type="range" id="lightZ" min="-20" max="20" step="0.5" value="5">
-        </label>
     </div>
 
     <script type="module">
@@ -215,71 +157,13 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-// =======================================================
-        // 4. BẬT ĐÈN & HỆ THỐNG ĐIỀU KHIỂN (UPDATE MỚI)
-        // =======================================================
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Giảm Ambient xuống chút để thấy rõ bóng của DirectionalLight
+        // 4. BẬT ĐÈN (Tăng cường độ sáng lên cho rõ nét)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
         
-        // Tạo ánh sáng định hướng (như mặt trời)
         const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
         directionalLight.position.set(5, 8, 5);
-        
-        // Bật khả năng đổ bóng (Tùy chọn cho đồ họa đẹp hơn)
-        directionalLight.castShadow = true;
-        directionalLight.shadow.camera.left = -10;
-        directionalLight.shadow.camera.right = 10;
-        directionalLight.shadow.camera.top = 10;
-        directionalLight.shadow.camera.bottom = -10;
         scene.add(directionalLight);
-
-        // Tạo Helper (Khung vuông) để nhìn thấy vị trí bóng đèn đang ở đâu
-        const dLightHelper = new THREE.DirectionalLightHelper(directionalLight, 1);
-        scene.add(dLightHelper);
-
-        // --- KẾT NỐI UI HTML VỚI ĐÈN THREE.JS ---
-        const colorInput = document.getElementById('lightColor');
-        const intensityInput = document.getElementById('lightIntensity');
-        const xInput = document.getElementById('lightX');
-        const yInput = document.getElementById('lightY');
-        const zInput = document.getElementById('lightZ');
-
-        // Hàm cập nhật chữ số hiển thị
-        const valIntensity = document.getElementById('valIntensity');
-        const valX = document.getElementById('valX');
-        const valY = document.getElementById('valY');
-        const valZ = document.getElementById('valZ');
-
-        // Đổi màu
-        colorInput.addEventListener('input', (e) => {
-            directionalLight.color.set(e.target.value);
-            dLightHelper.update();
-        });
-
-        // Đổi cường độ sáng
-        intensityInput.addEventListener('input', (e) => {
-            directionalLight.intensity = parseFloat(e.target.value);
-            valIntensity.innerText = e.target.value;
-        });
-
-        // Đổi hướng chiếu (Thay đổi tọa độ X, Y, Z của đèn)
-        function updateLightPosition() {
-            const x = parseFloat(xInput.value);
-            const y = parseFloat(yInput.value);
-            const z = parseFloat(zInput.value);
-            
-            directionalLight.position.set(x, y, z);
-            dLightHelper.update(); // Cập nhật hình ảnh Helper
-            
-            valX.innerText = x;
-            valY.innerText = y;
-            valZ.innerText = z;
-        }
-
-        xInput.addEventListener('input', updateLightPosition);
-        yInput.addEventListener('input', updateLightPosition);
-        zInput.addEventListener('input', updateLightPosition);
-        // =======================================================
 
         // 5. THÊM TƯƠNG TÁC CHUỘT
         const controls = new OrbitControls(camera, renderer.domElement);
@@ -1162,6 +1046,27 @@ table.add(bottomMesh);
                 console.error("Lỗi tải khung tranh: ", error);
             }
         );
+        // === DORAEMON NẰM NGHỈ DƯỠNG TRÊN LOUNGE CHAIR ===
+loader.load('doraemon.glb', (gltf) => {
+    doraemonModel = gltf.scene;
+    doraemonModel.scale.set(1, 1, 1);
+    
+    // 1. THUẬT TOÁN CHỐNG VẶN XOẮN: Đổi thứ tự góc xoay thành YXZ
+    // Xoay mặt đúng hướng trước (Y), sau đó mới ngả lưng (X)
+    doraemonModel.rotation.order = 'YXZ';
+    
+    // 2. XOAY GÓC: Ngả lưng sâu (-Math.PI / 2.2) và quay mặt ra hồ (Math.PI / 2)
+    doraemonModel.rotation.set(-Math.PI / 2.8, Math.PI / 2, 0); 
+    
+    // 3. TỊNH TIẾN VỊ TRÍ BÙ TRỪ:
+    // X = -1.35: Kéo thân trượt lên phía trước ghế một chút để đỉnh đầu không đâm xuyên qua tựa lưng.
+    // Y = 0.45: Nâng cao người lên để nằm êm ái trên mặt nệm, không bị lún chìm.
+    // Z = 3.0: Căn giữa mặt ghế.
+    doraemonModel.position.set(-1.1, 0.7, 3.0);
+    
+    PoolRoomGroup.add(doraemonModel);
+    console.log("Doraemon đã nằm nghỉ dưỡng đúng tư thế chuẩn!");
+});
         // ========================
         // BƯỚC 6.17: LOAD GHẾ ĐẨU
         //=========================
@@ -1463,49 +1368,36 @@ PoolRoomGroup.add(poolWallBack);
 // === CÁ MẬP BƠI VÒNG QUANH BỂ ===
 loader.load('shark.glb', (gltf) => {
     sharkModel = gltf.scene;
-    sharkModel.scale.set(1, 1, 1);
-    sharkModel.position.set(0.5, -0.7, 0);
+    sharkModel.scale.set(1, 1, 1); // Scale 1-1-1 như sếp yêu cầu
+    sharkModel.position.set(0.5, -0.4, 0);
     PoolRoomGroup.add(sharkModel);
-    console.log("Cá mập đã vào bể!");
+    console.log("Cá mập khổng lồ đã vào bể!");
 });
 
-// === DORAEMON NẰM NGHỈ DƯỠNG TRÊN LOUNGE CHAIR ===
-loader.load('doraemon.glb', (gltf) => {
-    doraemonModel = gltf.scene;
-    doraemonModel.scale.set(1, 1, 1);
-    
-    // 1. THUẬT TOÁN CHỐNG VẶN XOẮN: Đổi thứ tự góc xoay thành YXZ
-    // Xoay mặt đúng hướng trước (Y), sau đó mới ngả lưng (X)
-    doraemonModel.rotation.order = 'YXZ';
-    
-    // 2. XOAY GÓC: Ngả lưng sâu (-Math.PI / 2.2) và quay mặt ra hồ (Math.PI / 2)
-    doraemonModel.rotation.set(-Math.PI / 2.8, Math.PI / 2, 0); 
-    
-    // 3. TỊNH TIẾN VỊ TRÍ BÙ TRỪ:
-    // X = -1.35: Kéo thân trượt lên phía trước ghế một chút để đỉnh đầu không đâm xuyên qua tựa lưng.
-    // Y = 0.45: Nâng cao người lên để nằm êm ái trên mặt nệm, không bị lún chìm.
-    // Z = 3.0: Căn giữa mặt ghế.
-    doraemonModel.position.set(-1.1, 0.7, 3.0);
-    
-    PoolRoomGroup.add(doraemonModel);
-    console.log("Doraemon đã nằm nghỉ dưỡng đúng tư thế chuẩn!");
-});
-
+// Hệ thống hạt nước bắn lên khi Doraemon nhảy xuống bể
+const splashGeo = new THREE.SphereGeometry(0.04, 6, 6);
+const splashMat = new THREE.MeshBasicMaterial({ color: 0xaaddff, transparent: true, opacity: 0.8 });
+for (let i = 0; i < 20; i++) {
+    const drop = new THREE.Mesh(splashGeo, splashMat.clone());
+    drop.visible = false;
+    drop.userData = { vx: 0, vy: 0, vz: 0, active: false };
+    PoolRoomGroup.add(drop);
+    splashParticles.push(drop);
+}
 
 // --- NƯỚC BỂ BƠI LẤP ĐẦY VÀ ĐẬM MÀU ---
-// Dùng BoxGeometry thay cho Plane để nước có độ dày, lấp đầy lòng bể tốt hơn
-const waterGeo = new THREE.BoxGeometry(3.9, 0.8, 17.4); 
+const waterGeo = new THREE.BoxGeometry(3.9, 0.1, 17.4); 
 const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x004a7c, // Xanh dương đậm (Deep Blue)
+    color: 0x004a7c, // Xanh dương đậm 
     transparent: true,
-    opacity: 0.85,   // Tăng độ đặc để nhìn sâu và tối hơn
-    roughness: 0.05, // Siêu bóng
+    opacity: 0.85,   
+    roughness: 0.05, 
     metalness: 0.2
 });
 
 poolWater = new THREE.Mesh(waterGeo, waterMat);
-// Đặt Y = -0.5 để nó nằm giữa độ cao lòng hồ (-1.0 đến 0)
-poolWater.position.set(0.5, -0.5, 0.8); 
+// Kéo mặt nước dâng lên sát mép trên cùng của thành hồ
+poolWater.position.set(0.5, -0.05, 0.8); 
 poolWater.receiveShadow = true;
 PoolRoomGroup.add(poolWater);
 
@@ -1813,7 +1705,7 @@ PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
                 const arc = Math.sin(jump * Math.PI) * 0.5; // Quỹ đạo vòng cung
                 
                 usagiModel.position.y = uGroundY + arc + (jump * stoolHeight);
-                usagiModel.position.z = 1.8; 
+                usagiModel.position.z = 1.5; 
                 
                 // Chiikawa dừng lại và đứng xem
                 chiikawaModel.position.y = 0.77;
@@ -1822,26 +1714,39 @@ PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
                 // GIAI ĐOẠN 3 (160 -> 200): Usagi lấy đà nhảy từ ghế đẩu lên mặt bàn
                 const jump = (flipTimer - 160) / 40;
                 const startY = uGroundY + stoolHeight;
-                const heightDiff = uTableY - startY;
+                
+                // --- BIẾN TINH CHỈNH ĐỘ CAO TIẾP ĐẤT ---
+                // Nếu Usagi vẫn hơi lơ lửng, sếp giảm số 0.05 xuống (ví dụ 0.02). 
+                // Nếu bị lún chân, sếp tăng số 0.05 lên (ví dụ 0.08).
+                const targetTableY = uTableY;
+                
+                const heightDiff = targetTableY - startY;
                 const arc = Math.sin(jump * Math.PI) * 0.4;
                 
-                usagiModel.position.y = startY + arc + (jump * heightDiff);
-                usagiModel.position.z = 1.8 - (jump * 0.9); // Bay từ ghế (Z=1.8) vào mặt bàn (Z=0.9)
-                usagiModel.rotation.x = -Math.PI / 12 * jump; // Hơi chúi người về trước tạo đà
+                usagiModel.position.y = startY + arc + (jump * heightDiff); 
+                usagiModel.position.z = 1.5 - (jump * 0.9); 
+                usagiModel.rotation.x = -Math.PI / 12 * jump; // Hơi chúi người về trước tạo đà khi bay
 
             } else if (flipTimer < 240) {
-                // GIAI ĐOẠN 4 (200 -> 240): Usagi ngồi xổm tụ lực trên bàn
+                // GIAI ĐOẠN 4 (200 -> 240): Usagi đáp đất và ngồi xổm tụ lực trên bàn
+                const targetTableY = uTableY + 0.05; // Dùng chung mốc chiều cao tiếp đất
+                
                 usagiModel.position.x = 0; 
-                usagiModel.position.y = uTableY + 0.02; 
+                usagiModel.position.y = targetTableY; // Ép tọa độ Y đứng đúng mặt bàn
                 usagiModel.position.z = 0.9 + Math.sin(flipTimer * 0.5) * 0.02; // Rung rinh tay
+                
+                // QUAN TRỌNG: Trả thẳng người lại để 2 bàn chân áp phẳng xuống mặt bàn
+                usagiModel.rotation.x = 0; 
 
             } else if (flipTimer < 270) {
                 // GIAI ĐOẠN 5 (240 -> 270): LẬT BÀN VÀ VĂNG RA SAU
+                const targetTableY = uTableY + 0.05;
                 const progress = (flipTimer - 240) / 30;
+                
                 tableGroup.rotation.x = progress * Math.PI / 4;
                 usagiModel.rotation.x = (-Math.PI / 8 - (progress * Math.PI / 2)) + 1;
 
-                usagiModel.position.y = uTableY + 0.02 - progress * (uTableY - uGroundY);
+                usagiModel.position.y = targetTableY - progress * (targetTableY - uGroundY);
                 usagiModel.position.z = 0.9 + (progress * 1.0);
                 
                 // Nổ lực văng bi
@@ -1931,7 +1836,9 @@ PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
             const sz = cz + Math.sin(sa) * rz;
             const nx = cx + Math.cos(na) * rx;
             const nz = cz + Math.sin(na) * rz;
-            sharkModel.position.set(sx, -0.6, sz);
+            
+            // Đặt Y = -0.4 để cá mập to bơi sát mặt nước
+            sharkModel.position.set(sx, -0.4, sz); 
             const angle = Math.atan2(nx - sx, nz - sz);
             sharkModel.rotation.set(0, angle + Math.sin(st * 10) * 0.08, 0);
         }
@@ -1950,7 +1857,6 @@ PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
                 }
             }
         });
-
         // --- HIỆU ỨNG SÓNG NƯỚC LẤP LÁNH ---
 if (poolWater) {
     const time = Date.now() * 0.002;
@@ -1998,3 +1904,4 @@ if (poolWater) {
     </script>
 </body>
 </html>
+
