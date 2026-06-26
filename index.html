@@ -1463,33 +1463,34 @@ PoolRoomGroup.add(poolWallBack);
 // === CÁ MẬP BƠI VÒNG QUANH BỂ ===
 loader.load('shark.glb', (gltf) => {
     sharkModel = gltf.scene;
-    sharkModel.scale.set(0.2, 0.2, 0.2);
+    sharkModel.scale.set(1, 1, 1);
     sharkModel.position.set(0.5, -0.7, 0);
     PoolRoomGroup.add(sharkModel);
     console.log("Cá mập đã vào bể!");
 });
 
-// === DORAEMON BẮT ĐẦU TỪ ĐỈNH CẦU TRƯỢT ===
+// === DORAEMON NẰM NGHỈ DƯỠNG TRÊN LOUNGE CHAIR ===
 loader.load('doraemon.glb', (gltf) => {
     doraemonModel = gltf.scene;
     doraemonModel.scale.set(1, 1, 1);
-    // slide.glb: position(-0.5,0,-5), scale 0.4 → đỉnh slide ≈ Y=1.6, Z=-6.5 (local PoolRoomGroup)
-    doraemonModel.position.set(-0.5, 1.6, -6.5);
-    doraemonModel.rotation.set(-0.8, Math.PI, 0); // Ngửa mặt lên trên, quay về hướng bể
+    
+    // 1. THUẬT TOÁN CHỐNG VẶN XOẮN: Đổi thứ tự góc xoay thành YXZ
+    // Xoay mặt đúng hướng trước (Y), sau đó mới ngả lưng (X)
+    doraemonModel.rotation.order = 'YXZ';
+    
+    // 2. XOAY GÓC: Ngả lưng sâu (-Math.PI / 2.2) và quay mặt ra hồ (Math.PI / 2)
+    doraemonModel.rotation.set(-Math.PI / 2.8, Math.PI / 2, 0); 
+    
+    // 3. TỊNH TIẾN VỊ TRÍ BÙ TRỪ:
+    // X = -1.35: Kéo thân trượt lên phía trước ghế một chút để đỉnh đầu không đâm xuyên qua tựa lưng.
+    // Y = 0.45: Nâng cao người lên để nằm êm ái trên mặt nệm, không bị lún chìm.
+    // Z = 3.0: Căn giữa mặt ghế.
+    doraemonModel.position.set(-1.1, 0.7, 3.0);
+    
     PoolRoomGroup.add(doraemonModel);
-    console.log("Doraemon đã lên đỉnh cầu trượt!");
+    console.log("Doraemon đã nằm nghỉ dưỡng đúng tư thế chuẩn!");
 });
 
-// Hệ thống hạt nước bắn lên khi Doraemon nhảy xuống bể
-const splashGeo = new THREE.SphereGeometry(0.04, 6, 6);
-const splashMat = new THREE.MeshBasicMaterial({ color: 0xaaddff, transparent: true, opacity: 0.8 });
-for (let i = 0; i < 20; i++) {
-    const drop = new THREE.Mesh(splashGeo, splashMat.clone());
-    drop.visible = false;
-    drop.userData = { vx: 0, vy: 0, vz: 0, active: false };
-    PoolRoomGroup.add(drop);
-    splashParticles.push(drop);
-}
 
 // --- NƯỚC BỂ BƠI LẤP ĐẦY VÀ ĐẬM MÀU ---
 // Dùng BoxGeometry thay cho Plane để nước có độ dày, lấp đầy lòng bể tốt hơn
@@ -1950,117 +1951,6 @@ PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
             }
         });
 
-        // --- 4. DORAEMON: KỊCH BẢN HOÀN CHỈNH --
-
-        if (doraemonModel) {
-            const CYCLE = 20;
-            const dt = (Date.now() * 0.001) % CYCLE;
-
-            if (dt < 3.0) {
-                // GIAI ĐOẠN 1: TRƯỢT XUỐNG – ngửa mặt lên trên
-                const p = dt / 3.0;
-                const e = p * p * (3 - 2 * p);
-                // Từ đỉnh (-0.5, 1.6, -6.5) → chân cầu trượt (-0.5, 0.05, -3.5)
-                doraemonModel.position.x = -0.5;
-                doraemonModel.position.y = 1.6 - e * 1.55;
-                doraemonModel.position.z = -6.5 + e * 3.0;
-                // rotation.x âm = ngửa mặt lên (đầu ngả ra sau)
-                doraemonModel.rotation.x = -0.8 + e * 0.3; // Bắt đầu ngửa, dần ít hơn
-                doraemonModel.rotation.y = Math.PI;
-                doraemonModel.rotation.z = 0;
-                doraemonModel.userData.phase = 'slide';
-
-            } else if (dt < 4.0) {
-                // GIAI ĐOẠN 2: RƠI VÀO BỂ + BẮN NƯỚC
-                const p = (dt - 3.0) / 1.0;
-                doraemonModel.position.x = -0.5;
-                doraemonModel.position.y = 0.05 - p * 0.6; // Chìm xuống
-                doraemonModel.position.z = -3.5;
-                doraemonModel.rotation.x = -0.5 + p * 1.2;
-                doraemonModel.rotation.y = Math.PI;
-
-                if (dt > 3.05 && dt < 3.25 && doraemonModel.userData.phase !== 'splash') {
-                    doraemonModel.userData.phase = 'splash';
-                    splashParticles.forEach((drop, i) => {
-                        drop.position.set(-0.5, 0.0, -3.5);
-                        const a = (i / splashParticles.length) * Math.PI * 2;
-                        drop.userData.vx = Math.cos(a) * (0.07 + Math.random() * 0.1);
-                        drop.userData.vy = 0.2 + Math.random() * 0.2;
-                        drop.userData.vz = Math.sin(a) * (0.07 + Math.random() * 0.1);
-                        drop.userData.active = true;
-                        drop.material.opacity = 0.95;
-                        drop.visible = true;
-                    });
-                }
-
-            } else if (dt < 7.0) {
-                // GIAI ĐOẠN 3: BƠI TRONG BỂ từ Z=-3.5 → Z=2
-                const p = (dt - 4.0) / 3.0;
-                const e = p * p * (3 - 2 * p);
-                doraemonModel.position.x = -0.5 + e * 1.25; // Bơi chéo sang bờ sảnh
-                doraemonModel.position.y = -0.3 + e * 0.35; // Nổi dần lên
-                doraemonModel.position.z = -3.5 + e * 5.5;
-                doraemonModel.rotation.x = 0.15;
-                doraemonModel.rotation.y = 0; // Mặt hướng Z+ (về bờ)
-                doraemonModel.rotation.z = Math.sin(dt * 5) * 0.15;
-                doraemonModel.userData.phase = 'swim';
-
-            } else if (dt < 8.0) {
-                // GIAI ĐOẠN 4: LEO LÊN BỜ PHÍA PHẢI (Sát thành bể bên phải X ≈ 2.2)
-                const p = (dt - 7.0) / 1.0;
-                doraemonModel.position.x = 0.75 + p * 1.45; // Dịch sang phải (từ 0.75 ra 2.2)
-                doraemonModel.position.y = 0.05 + p * 0.05;
-                doraemonModel.position.z = 2.0;
-                doraemonModel.rotation.set(0, Math.PI, 0); // Nhìn thẳng về phía sau
-                doraemonModel.userData.phase = 'shore';
-
-            } else if (dt < 10.0) {
-                // GIAI ĐOẠN 5: ĐI BỘ DỌC MÉP PHẢI → hướng về cầu thang (đi ngược lên Z)
-                const p = (dt - 8.0) / 2.0;
-                doraemonModel.position.x = 2.2; // Giữ ở mép phải
-                doraemonModel.position.y = 0.1;
-                doraemonModel.position.z = 2.0 - p * 5.5; // Đi từ Z=2 về Z=-3.5
-                doraemonModel.rotation.set(0, Math.PI, 0); // Mặt hướng Z- (về cầu thang)
-                doraemonModel.userData.phase = 'walk';
-
-            } else if (dt < 11.0) {
-                // GIAI ĐOẠN 6: QUAY TRÁI để vào chân cầu thang
-                const p = (dt - 10.0) / 1.0;
-                doraemonModel.position.x = 2.2 - p * 1.7; // Rẽ trái (về X=0.5)
-                doraemonModel.position.y = 0.1;
-                doraemonModel.position.z = -3.5;
-                // Quay mặt từ hướng Z- sang hướng Z- (nhưng xoay người sang trái)
-                doraemonModel.rotation.y = Math.PI - (p * Math.PI / 2); 
-                doraemonModel.userData.phase = 'turn';
-
-            } else if (dt < 14.0) {
-                // GIAI ĐOẠN 7: LEO CẦU THANG
-                const p = (dt - 11.0) / 3.0;
-                doraemonModel.position.x = 0.5;
-                doraemonModel.position.y = (p * 1.5) + 0.1; 
-                doraemonModel.position.z = -3.5 - p * 2.5;
-                doraemonModel.rotation.set(-0.35, Math.PI, 0); // Cúi nhẹ leo thang
-                doraemonModel.userData.phase = 'climb';
-
-            } else if (dt < 16.0) {
-                // GIAI ĐOẠN 8: BƯỚC QUA PLATFORM ĐỈNH → ĐỆN CẦU TRƯỢT
-                const p = (dt - 14.0) / 2.0;
-                const e = p * p * (3 - 2 * p);
-                doraemonModel.position.x = 0.5 - e * 1.0; // Đi từ X=0.5 sang X=-0.5
-                doraemonModel.position.y = 1.6;
-                doraemonModel.position.z = -6.0 - e * 0.5; // Tiến vào đỉnh slide
-                doraemonModel.rotation.x = -e * 0.8; // Bắt đầu ngả người ngửa
-                doraemonModel.rotation.y = Math.PI;
-                doraemonModel.rotation.z = 0;
-                doraemonModel.userData.phase = 'top';
-
-            } else {
-                // GIAI ĐOẠN 9: NGỒI NGỬA (Tư thế trượt)
-                doraemonModel.position.set(-0.5, 1.6, -6.5);
-                // rotation.x = -1.2 giúp bé ngửa mặt lên trời (tư thế trượt chuẩn)
-                doraemonModel.rotation.set(-1.2, -Math.PI, 0); 
-                doraemonModel.userData.phase = 'wait';
-            }}
         // --- HIỆU ỨNG SÓNG NƯỚC LẤP LÁNH ---
 if (poolWater) {
     const time = Date.now() * 0.002;
