@@ -11,6 +11,11 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: Arial, sans-serif;
         }
         .control-btn { display: block; width: 100%; margin-bottom: 8px; padding: 8px 12px; background-color: #9b2242; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        #name-tag {
+            position: absolute; background: rgba(0, 0, 0, 0.8); color: #fff; padding: 6px 12px;
+            border-radius: 8px; font-family: Arial, sans-serif; font-weight: bold;
+            pointer-events: none; display: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
     </style>
     <script type="importmap">
       { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
@@ -31,33 +36,64 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // ==========================================
-        // 1. BIẾN KIỂM SOÁT ANIMATION (TỪ CODE CỦA BẠN)
-        // ==========================================
+        // KHAI BAO BIEN TOAN CUC
         let usagiModel = null;
         let chiikawaModel = null;
         let hachiwareModel = null;
         let mikuModel = null;
         let poolWater = null;
         let stoolModel = null;
+        let sharkModel = null;
+        let doraemonModel = null;
 
-        let tableGroup = new THREE.Group(); // Gói bàn vào Group để lật
+        let tableGroup = new THREE.Group();
         let customBalls = []; 
         let flipTimer = 0;    
         let tableTopY = 0;
-        let sharkModel = null;
-        let doraemonModel = null; // Bé doraemon trượt
-        let poolGroup = new THREE.Group(); // Nhóm chứa các vật thể bể bơi
-        let splashParticles = []; // Hạt nước bắn lên khi Doraemon nhảy xuống
+        let waterOrigPositions = null;
         const usagiBaseY = 0;
 
-        // --- CODE THÊM: HỆ THỐNG RAYCASTER ---
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
         const interactables = []; 
         const nameTag = document.getElementById('name-tag');
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const textureLoader = new THREE.TextureLoader();
+        const loader = new GLTFLoader();
 
-        // Hàm gắn mác tên và khả năng nhảy cho model
+        // KHOI TAO SAN KHAU VA MAY QUAY
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xd3d3d3);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const cameraViews = {
+            overview: { position: new THREE.Vector3(10, 2, 5), target: new THREE.Vector3(-6, 0, 5) },
+            billiardRoom: { position: new THREE.Vector3(5, 2, 0), target: new THREE.Vector3(-6, 0.5, 0) },
+            LivingRoom: { position: new THREE.Vector3(5, 2, 12), target: new THREE.Vector3(0, 0.5, 12) },
+            Pool: { position: new THREE.Vector3(10, -2, 5.5), target: new THREE.Vector3(0, -2.5, 5.5) }
+        };
+        let targetView = cameraViews.overview;
+        let isTransitioning = false; 
+        camera.position.copy(targetView.position);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(-4, 1, 0); 
+
+        // CAI DAT ANH SANG TONG THE
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(5, 8, 5);
+        scene.add(directionalLight);
+
+        // HAM HO TRO TIEU CHUAN
         function makeInteractable(model, englishName, isCharacter = false) {
             if (!model) return;
             model.traverse((child) => {
@@ -65,7 +101,7 @@
                     child.userData.enName = englishName;
                     child.userData.isCharacter = isCharacter;
                     child.userData.parentGroup = model; 
-                    interactables.push(child); // Đưa vào danh sách bắt tia
+                    interactables.push(child);
                 }
             });
             if (isCharacter) {
@@ -77,670 +113,223 @@
         function resetBalls() {
             if (!customBalls || customBalls.length === 0) return;
             customBalls.forEach(ball => {
-                if (ball.userData && ball.userData.startPos) {
-                    ball.position.copy(ball.userData.startPos);
-                }
-                if (ball.userData && ball.userData.velocity) {
-                    ball.userData.velocity.set(0, 0, 0);
-                }
+                if (ball.userData && ball.userData.startPos) ball.position.copy(ball.userData.startPos);
+                if (ball.userData && ball.userData.velocity) ball.userData.velocity.set(0, 0, 0);
             });
         }
 
-        function createCustomBalls(tableY) {
+        function createCustomBalls(tableY, parentGroup) {
             if (!customBalls) customBalls = [];
             if (customBalls.length > 0) return;
-
             const ballGeo = new THREE.SphereGeometry(0.04, 16, 16);
             const colors = [0xffffff, 0xff0000, 0x0000ff, 0xffff00, 0x00ff00, 0xffa500];
             const positions = [
-                new THREE.Vector3(-0.24, tableY + 0.04, -0.08),
-                new THREE.Vector3(0.0, tableY + 0.04, -0.02),
-                new THREE.Vector3(0.24, tableY + 0.04, -0.08),
-                new THREE.Vector3(-0.12, tableY + 0.04, 0.08),
+                new THREE.Vector3(-0.24, tableY + 0.04, -0.08), new THREE.Vector3(0.0, tableY + 0.04, -0.02),
+                new THREE.Vector3(0.24, tableY + 0.04, -0.08), new THREE.Vector3(-0.12, tableY + 0.04, 0.08),
                 new THREE.Vector3(0.12, tableY + 0.04, 0.08)
             ];
-
             positions.forEach((pos, index) => {
-                const ballMat = new THREE.MeshStandardMaterial({
-                    color: colors[index % colors.length],
-                    roughness: 0.4,
-                    metalness: 0.3
-                });
+                const ballMat = new THREE.MeshStandardMaterial({ color: colors[index % colors.length], roughness: 0.4, metalness: 0.3 });
                 const ball = new THREE.Mesh(ballGeo, ballMat);
                 ball.position.copy(pos);
-                ball.userData = {
-                    startPos: pos.clone(),
-                    velocity: new THREE.Vector3(0, 0, 0)
-                };
-                // LƯU Ý QUAN TRỌNG: Đưa bi vào thẳng phòng bi-a để giữ cấu trúc Dollhouse
-                billiardRoomGroup.add(ball); 
+                ball.userData = { startPos: pos.clone(), velocity: new THREE.Vector3(0, 0, 0) };
+                parentGroup.add(ball); 
                 customBalls.push(ball);
             });
         }
 
-        // 1. DỰNG SÂN KHẤU (Scene)
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xd3d3d3); // Nền xám cho dễ nhìn
+        // KHAI BAO CHAT LIEU CHUNG
+        const woodTexture = textureLoader.load('wood.jpg');
+        woodTexture.wrapS = THREE.RepeatWrapping; woodTexture.wrapT = THREE.RepeatWrapping; woodTexture.repeat.set(3, 3);
+        const floorMaterial = new THREE.MeshStandardMaterial({ map: woodTexture, roughness: 0.3 });
 
-        // 2. ĐẶT MÁY QUAY
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-        // Định nghĩa các góc máy mục tiêu (Vị trí camera và Tâm điểm nhìn vào)
-        const cameraViews = {
-            overview: {
-                position: new THREE.Vector3(10, 2, 5), // Đứng xa ở giữa để nhìn toàn cảnh cả 2 phòng
-                target: new THREE.Vector3(-6, 0, 5)   // Nhìn vào tâm điểm giữa 2 phòng
-            },
-            billiardRoom: {
-                position: new THREE.Vector3(5, 2, 0),   // Tiến sát vào phòng bi-a
-                target: new THREE.Vector3(-6, 0.5, 0)      // Tập trung vào bàn bi-a
-            },
-            LivingRoom: {
-                position: new THREE.Vector3(5, 2, 12),  // Tiến sát vào phòng mới bên trái
-                target: new THREE.Vector3(0, 0.5, 12)     // Tập trung vào phòng mới
-            },
-            Pool: {
-                position: new THREE.Vector3(10, -2, 5.5),  // Đứng thấp xuống để nhìn ngang tầng hầm
-                target: new THREE.Vector3(0, -2.5, 5.5)    // Nhìn thẳng vào hồ bơi
-            }
-        };
-
-        // Đặt góc máy mặc định ban đầu là Tổng quan
-        let targetView = cameraViews.overview;
-        let isTransitioning = false; // THÊM DÒNG NÀY: Khởi đầu không tự động bay
-        camera.position.copy(targetView.position);
-
-        // 3. XUẤT HÌNH (Renderer)
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
-
-        // 4. BẬT ĐÈN (Tăng cường độ sáng lên cho rõ nét)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-        scene.add(ambientLight);
-        
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
-        directionalLight.position.set(5, 8, 5);
-        scene.add(directionalLight);
-
-        // 5. THÊM TƯƠNG TÁC CHUỘT
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.target.set(-4, 1, 0); 
-
-        // Trục tọa độ trợ giúp (Đỏ = X, Xanh lá = Y, Xanh dương = Z) để bạn biết model đang nằm đâu
-        // const axesHelper = new THREE.AxesHelper(5);
-        // scene.add(axesHelper);
-
-        // 5.5. TỰ CHẾ PHÒNG BI A (Rộng 6, Dài 10, Cao 2.5)
+        // PHONG BI A
         const billiardRoomGroup = new THREE.Group();
         scene.add(billiardRoomGroup);
-                // 1. Tạo bộ tải ảnh nền
-        const textureLoader = new THREE.TextureLoader();
-        const woodTexture = textureLoader.load('wood.jpg'); // Gọi file ảnh wood.jpg đứng cạnh index.html
 
-        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x9b2242, roughness: 2.0 });
-        const floorMaterial = new THREE.MeshStandardMaterial({ 
-            map: woodTexture, 
-            roughness: 0.3 // Giảm độ nhám xuống một chút để sàn gỗ có độ bóng nhẹ hắt ánh sáng
-        });
-        const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0xfcf4d7, roughness: 2.0 }); // Màu trần
-
-        // 2. Cấu hình cho vân gỗ lặp lại (Tiling) để nhìn tự nhiên, không bị kéo giãn bẹp dí
-        woodTexture.wrapS = THREE.RepeatWrapping;
-        woodTexture.wrapT = THREE.RepeatWrapping;
-        woodTexture.repeat.set(3, 3); // Càng tăng số này thì các thanh gỗ càng nhỏ lại và lặp lại nhiều hơn
-
-        // 3. Thay đổi chất liệu sàn: Đổi từ dùng thuộc tính màu (color) sang thuộc tính ảnh (map)
-
-        // 1. Sàn nhà (Thu nhỏ từ 20 xuống 6)
-        const floorGeo = new THREE.PlaneGeometry(6, 10);
-        const floor = new THREE.Mesh(floorGeo, floorMaterial);
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.y = 0; 
-        billiardRoomGroup.add(floor);
-
-        // 2. Tường sau (Rộng 6, Cao 2.5, Dày 0.2)
-        const backWallGeo = new THREE.BoxGeometry(6, 2.5, 0.05);
-        const backWall = new THREE.Mesh(backWallGeo, wallMaterial);
-        // Nâng y=1.25 để chạm sàn. Lùi z=-5.1 để mép trong ốp vừa khít viền sàn
-        backWall.position.set(0, 1.25, -5.1); 
-        billiardRoomGroup.add(backWall);
-
-        // 3. Tường bên trái (Dài 10, Cao 2.5, Dày 0.2)
-        const leftWallGeo = new THREE.BoxGeometry(10, 2.5, 0.05);
-        const leftWall = new THREE.Mesh(leftWallGeo, wallMaterial);
-        leftWall.rotation.y = Math.PI / 2;
-        leftWall.position.set(-3.1, 1.25, 0); // Đẩy ra rìa trái x=-3.1
-        billiardRoomGroup.add(leftWall);
-
-        // 4. Tường trước (Rộng 6, Cao 2.5, Dày 0.2)
-        const frontWallGeo = new THREE.BoxGeometry(6, 2.5, 0.05);
-        const frontWall = new THREE.Mesh(frontWallGeo, wallMaterial);
-        frontWall.position.set(0, 1.25, 5.1); // Đẩy ra rìa trước z=5.1
-        // Đã là khối hộp 3D thì không cần lệnh lật mặt (rotation.y = Math.PI) nữa
-        billiardRoomGroup.add(frontWall);
-
-        // SỬA TỌA ĐỘ: Đặt đúng rìa sàn (z = 5)
-        frontWall.position.set(0, 1.25, 5); 
+        const billiardWallMat = new THREE.MeshStandardMaterial({ color: 0x9b2242, roughness: 2.0 });
         
-        // SỬA HIỂN THỊ: Xoay 180 độ quanh trục Y để lật mặt đỏ vào trong phòng
-        frontWall.rotation.y = Math.PI; 
-        
-        billiardRoomGroup.add(frontWall);
+        const billiardFloor = new THREE.Mesh(new THREE.PlaneGeometry(6, 10), floorMaterial);
+        billiardFloor.rotation.x = -Math.PI / 2;
+        billiardRoomGroup.add(billiardFloor);
 
-        // =================================================================
-        // CẬP NHẬT: TRẦN GIẬT CẤP ĐỔI MÀU KEM/BE + KHỬ ĐỐM SÁNG + TĂNG SÁNG VIỀN
-        // =================================================================
-        
-        // Chất liệu 1: Màu trắng thạch cao sạch sẽ cho phần khung hạ cấp xung quanh
-        const outerCeilingMat = new THREE.MeshStandardMaterial({ 
-            color: 0xefefef, 
-            roughness: 2.0 
-        });
+        const billiardBackWall = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 0.05), billiardWallMat);
+        billiardBackWall.position.set(0, 1.25, -5.1); 
+        billiardRoomGroup.add(billiardBackWall);
 
-        // Chất liệu 2: MÀU KEM/BE HOÀNG GIA ĐẬM ĐÀ cho tấm hình chữ nhật lõm bên trong
-        const innerCeilingMat = new THREE.MeshStandardMaterial({ 
-            color: 0xeedebf, // Mã màu kem/be lên đèn cực sang
-            roughness: 2.0 
-        });
+        const billiardLeftWall = new THREE.Mesh(new THREE.BoxGeometry(10, 2.5, 0.05), billiardWallMat);
+        billiardLeftWall.rotation.y = Math.PI / 2;
+        billiardLeftWall.position.set(-3.1, 1.25, 0);
+        billiardRoomGroup.add(billiardLeftWall);
 
-        // 1. TẤM TRẦN NỀN TRUNG TÂM (Đổ khối bê tông dày 0.2m)
-        const topCeilingGeo = new THREE.BoxGeometry(6, 0.05, 10);
-        const topCeiling = new THREE.Mesh(topCeilingGeo, innerCeilingMat); 
-        // Đã là khối hộp nên không cần xoay lật mặt nữa
+        const billiardFrontWall = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 0.05), billiardWallMat);
+        billiardFrontWall.position.set(0, 1.25, 5); 
+        billiardFrontWall.rotation.y = Math.PI; 
+        billiardRoomGroup.add(billiardFrontWall);
+
+        // KET CAU TRAN PHONG BI A
+        const outerCeilingMat = new THREE.MeshStandardMaterial({ color: 0xefefef, roughness: 2.0 });
+        const innerCeilingMat = new THREE.MeshStandardMaterial({ color: 0xeedebf, roughness: 2.0 });
+        const ledMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
+
+        const topCeiling = new THREE.Mesh(new THREE.BoxGeometry(6, 0.05, 10), innerCeilingMat); 
         topCeiling.position.set(0, 2.6, 0); 
         billiardRoomGroup.add(topCeiling);
 
-        // 2. 4 KHỐI HỘP HẠ CẤP XUNG QUANH RÌA (Giữ màu trắng thạch cao)
-        const frameThickness = 0.15;
+        const leftBox = new THREE.Mesh(new THREE.BoxGeometry(1, 0.15, 10), outerCeilingMat); leftBox.position.set(-2.5, 2.45, 0);
+        const rightBox = new THREE.Mesh(new THREE.BoxGeometry(1, 0.15, 10), outerCeilingMat); rightBox.position.set(2.5, 2.45, 0);
+        const backBox = new THREE.Mesh(new THREE.BoxGeometry(4, 0.15, 1), outerCeilingMat); backBox.position.set(0, 2.45, -4.5);
+        const frontBox = new THREE.Mesh(new THREE.BoxGeometry(4, 0.15, 1), outerCeilingMat); frontBox.position.set(0, 2.45, 4.5);
+        billiardRoomGroup.add(leftBox, rightBox, backBox, frontBox);
 
-        // Khung hạ cấp bên Trái
-        const leftBox = new THREE.Mesh(new THREE.BoxGeometry(1, frameThickness, 10), outerCeilingMat);
-        leftBox.position.set(-2.5, 2.45, 0);
-        billiardRoomGroup.add(leftBox);
+        const ledLeft = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 8), ledMaterial); ledLeft.position.set(-1.98, 2.53, 0);
+        const ledRight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 8), ledMaterial); ledRight.position.set(1.98, 2.53, 0);
+        const ledBack = new THREE.Mesh(new THREE.BoxGeometry(4, 0.02, 0.02), ledMaterial); ledBack.position.set(0, 2.53, -3.98);
+        const ledFront = new THREE.Mesh(new THREE.BoxGeometry(4, 0.02, 0.02), ledMaterial); ledFront.position.set(0, 2.53, 3.98);
+        billiardRoomGroup.add(ledLeft, ledRight, ledBack, ledFront);
 
-        // Khung hạ cấp bên Phải
-        const rightBox = new THREE.Mesh(new THREE.BoxGeometry(1, frameThickness, 10), outerCeilingMat);
-        rightBox.position.set(2.5, 2.45, 0);
-        billiardRoomGroup.add(rightBox);
-
-        // Khung hạ cấp phía Sau
-        const backBox = new THREE.Mesh(new THREE.BoxGeometry(4, frameThickness, 1), outerCeilingMat);
-        backBox.position.set(0, 2.45, -4.5);
-        billiardRoomGroup.add(backBox);
-
-        // Khung hạ cấp phía Trước
-        const frontBox = new THREE.Mesh(new THREE.BoxGeometry(4, frameThickness, 1), outerCeilingMat);
-        frontBox.position.set(0, 2.45, 4.5);
-        billiardRoomGroup.add(frontBox);
-
-        // 3. TĂNG SÁNG VIỀN THẠCH CAO (DẢI ĐÈN LED NỔI BẬT)
-        // Thay đổi màu từ vàng nhạt sang màu TRẮNG SÁNG TUYỆT ĐỐI (0xffffff) 
-        // Vì là MeshBasicMaterial nên nó sẽ tự phát phát quang rực rỡ nhất mà không bị đổ bóng che mờ
-        const ledMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
-
-        const ledLongGeo = new THREE.BoxGeometry(0.02, 0.02, 8);
-        const ledShortGeo = new THREE.BoxGeometry(4, 0.02, 0.02);
-
-        const ledLeft = new THREE.Mesh(ledLongGeo, ledMaterial);
-        ledLeft.position.set(-1.98, 2.53, 0); 
-        billiardRoomGroup.add(ledLeft);
-
-        const ledRight = new THREE.Mesh(ledLongGeo, ledMaterial);
-        ledRight.position.set(1.98, 2.53, 0); 
-        billiardRoomGroup.add(ledRight);
-
-        const ledBack = new THREE.Mesh(ledShortGeo, ledMaterial);
-        ledBack.position.set(0, 2.53, -3.98); 
-        billiardRoomGroup.add(ledBack);
-
-        const ledFront = new THREE.Mesh(ledShortGeo, ledMaterial);
-        ledFront.position.set(0, 2.53, 3.98); 
-        billiardRoomGroup.add(ledFront);
-
-       // =================================================================
-        // 6. GỌI DIỄN VIÊN (LOAD CẢ USAGI LẪN BÀN BI-A)
-        // =================================================================
-        const loader = new GLTFLoader();
-
-       // --- 6.1. LOAD USAGI VÀ GẮN GẬY ---
-        loader.load(
-            'model.glb', 
-            function (gltf) {
-                const usagi = gltf.scene;
-                
-                // ... (Các đoạn tính toán Pivot giữ nguyên như cũ) ...
-                const usagiBox = new THREE.Box3().setFromObject(usagi);
-                const usagiHeight = usagiBox.max.y - usagiBox.min.y;
-                const usagiGroundY = 0.02;
-                
-                const usagiPivot = new THREE.Group();
-                usagi.position.set(0, -usagiBox.min.y, 0);
-                usagi.rotation.set(0, Math.PI, 0);
-                usagiPivot.add(usagi);
-                usagiPivot.position.set(0, usagiGroundY, 2.5);
-                usagiPivot.rotation.y = -2 * Math.PI; 
-
-                usagiPivot.userData = { groundY: usagiGroundY, minY: usagiBox.min.y, tableY: tableTopY > 0 ? tableTopY : null, jumpHeight: Math.max(0.9, usagiHeight * 0.8) };
-                usagiModel = usagiPivot;
-                billiardRoomGroup.add(usagiModel);
-                makeInteractable(usagiModel, 'Usagi', true);
-
-                // --- GẮN GẬY THẬT TỪ FILE .glb (ĐẶT ĐÚNG TAY PHẢI) ---
-                loader.load('billiard_cue.glb', function(gltfCue) {
-                    const cue = gltfCue.scene;
-                    
-                    // TỌA ĐỘ CẦN CHỈNH:
-                    // X = -0.1 (Tay phải), Y = 0.5 (Tầm ngang ngực), Z = 0.2 (Đưa gậy ra trước)
-                    cue.position.set(0.6, 0.6, -0.2); 
-                    cue.rotation.set(0, Math.PI/2, Math.PI/4); // Xoay dọc gậy
-                    
-                    // Nếu gậy vẫn to/nhỏ quá, sếp chỉnh số ở đây:
-                    cue.scale.set(1, 1, 1); 
-                    
-                    usagiPivot.add(cue);
-                    usagiPivot.userData.cue = cue; 
-                    console.log("Đã gắn gậy vào tay phải Usagi!");
-                });
-            },
-            undefined, 
-            function (error) {
-                console.error("Lỗi tải Usagi: ", error);
-            }
-        );
-
-   // --- 6.2. LOAD BÀN BI-A ---
-loader.load(
-    'billiard_table.glb',
-    function (gltf) {
-        const table = gltf.scene;
-        table.position.set(0, 0, 0); 
-        table.rotation.y = 3 * Math.PI / 2;
-
-        table.traverse(function (child) {
-            if (child.isMesh) {
-                // Xử lý mặt bàn xanh
-                if (child.name === 'Billiards_GreenBoard_Material_#25_0') {
-                    child.material.map = null; 
-                    child.material.color.setHex(0x00868b); 
-                    child.material.needsUpdate = true; 
-                }
-
-                // Ẩn gậy bi-a
-                if (child.name.includes('Billiard_Stick')) {
-                    child.visible = false; 
-                }
-            }
-        });
-
-        // 1. Đưa bàn bi-a vào không gian
-        tableTopY = new THREE.Box3().setFromObject(table).max.y;
-        // Gói bàn vào Group để lát Usagi còn lật
-        tableGroup.add(table); 
-        billiardRoomGroup.add(tableGroup);
-        createCustomBalls(tableTopY);
-        makeInteractable(tableGroup, 'Billiard Table', false); // false = không nhảy
-        resetBalls();
-
-        // =========================================================
-        // 2. TẠO TẤM ẢNH GẦM BÀN VÀ GẮN CHẶT VÀO BÀN
-        // =========================================================
-const bottomGeo = new THREE.PlaneGeometry(2.6, 1.35); 
-
-// Bước 2: Nạp tài nguyên tĩnh (Bảo toàn tỷ lệ khung hình gốc)
-const localTextureLoader = new THREE.TextureLoader();
-const bottomTexture = localTextureLoader.load(
-    'wreneven.jpg',
-    function(texture) {
-        // Cân bằng phổ màu chuẩn của Three.js
-        texture.colorSpace = THREE.SRGBColorSpace;
-        
-        // Căn tâm tọa độ UV phục vụ cho các phép nội suy nếu cần
-        texture.center.set(0.5, 0.5);
-        
-        // Loại bỏ hoàn toàn phép xoay 90 độ (Math.PI / 2) để ảnh không bị cắt xén
-        texture.rotation = 0; 
-        
-        console.log("Xác nhận: Tiến trình đồng bộ tỷ lệ ảnh (Landscape) với mặt phẳng hoàn tất.");
-        
-    },
-    undefined,
-    function(error) {
-        console.error("Ngoại lệ tải tài nguyên tĩnh.", error);
-    }
-);
-
-// Bước 3: Định nghĩa đặc tính bề mặt quang học
-const bottomMat = new THREE.MeshBasicMaterial({ 
-    map: bottomTexture, 
-    color: 0xffffff, 
-    side: THREE.DoubleSide 
-});
-
-// Bước 4: Khởi tạo thực thể không gian (Mesh) và can thiệp ma trận xoay
-const bottomMesh = new THREE.Mesh(bottomGeo, bottomMat);
-
-// Lật mặt phẳng nằm ngang song song với trục XZ của không gian
-bottomMesh.rotation.x = Math.PI / 2;
-bottomMesh.rotation.z = Math.PI;
-
-// Định vị cao độ cục bộ (Trục Y)
-bottomMesh.position.set(0, 0.6, 0); 
-
-// Bước 5: Tích hợp vào hệ quy chiếu của mô hình bàn
-table.add(bottomMesh);
-        console.log("Đã gắn thành công ảnh vào gầm bàn!");
-    },
-    undefined,
-    function (error) {
-        console.error("Lỗi: ", error);
-    }
-);
-        // --- 6.3. LOAD CỘT NHÀ KIỂU ÂU VÀ ĐẶT VÀO 4 GÓC PHÒNG MỚI (6x10) ---
-        loader.load(
-            'column.glb', 
-            function (gltf) {
-                const baseColumn = gltf.scene;
-
-                // Tọa độ 4 góc mới tính theo phòng rộng 6, dài 10 (đã thụt lề để tránh lún tường)
-                const cornerPositions = [
-                    { x: -2.75, z: -4.9 }, // Góc Sau - Trái
-                    { x: 2.75, z: -4.9 },  // Góc Sau - Phải
-                    { x: -2.75, z: 4.9 },  // Góc Trước - Trái
-                    { x: 2.75, z: 4.9 }    // Góc Trước - Phải
-                ];
-
-                cornerPositions.forEach(function(pos) {
-                    const columnClone = baseColumn.clone();
-                    columnClone.position.set(pos.x, 0, pos.z); 
-
-                    // SỬA LỖI KHỔNG LỒ: Thu nhỏ cái cột lại bằng 25% kích thước ban đầu
-                    // Nếu sau khi lưu vẫn thấy to hoặc quá bé, bạn tăng/giảm đều cả 3 số này nhé (ví dụ: 0.2 hoặc 0.4)
-                    columnClone.scale.set(0.3, 0.3, 0.3); 
-                    billiardRoomGroup.add(columnClone);
-                    makeInteractable(columnClone, 'Pillar', false);
-                });
-
-                console.log("Đã cắm xong 4 cột trụ vừa vặn vào phòng 6x10!");
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi tải cột: ", error);
-            }
-        );
-        // --- 6.4. LOAD ĐÈN CHÙM (CHANDELIER) VÀ TẠO NGUỒN SÁNG TỎA ---
-        loader.load(
-            'chandelier.glb', // Tên chính xác file đèn chùm của bạn
-            function (gltf) {
-                const chandelier = gltf.scene;
-
-                // Đặt đèn ở chính giữa phòng (X=0, Z=0) và sát trần nhà (Y=2.5)
-                // Nếu đèn có dây xích dài sẵn, bạn có thể hạ Y xuống một chút (ví dụ 2.3 hoặc 2.2)
-                chandelier.position.set(0, 2.5, 0);
-
-                // MẸO SỬA KÍCH THƯỚC: Nếu đèn quá to hoặc quá nhỏ, bạn chỉnh con số ở đây nhé
-                chandelier.scale.set(0.03, 0.03, 0.03);
-
-                billiardRoomGroup.add(chandelier);
-
-                // HOÀNG GIA ĐỔ SÁNG: Thêm một ngọn đèn PointLight ngay tại tâm chiếc đèn chùm
-                // Tham số: (Màu sắc vàng ấm, Cường độ sáng, Khoảng cách ánh sáng tới được)
-                const lampLight = new THREE.PointLight(0xffdfa9, 3, 8); 
-                lampLight.position.set(0, 2.3, 0); // Đặt thấp hơn trần một chút để ánh sáng tỏa ra đẹp hơn
-                
-                // Bật đổ bóng cho ngọn đèn này nếu muốn xịn hơn (tùy chọn)
-                lampLight.castShadow = true; 
-                billiardRoomGroup.add(lampLight);
-
-                // Thêm một khối cầu nhỏ phát sáng mô phỏng bóng đèn (Nếu mô hình gốc của bạn không tự sáng)
-                // chandelier.traverse((child) => {
-                //     if (child.isMesh && child.name.includes('glass')) { // hoặc tên mesh chứa bóng đèn
-                //         child.material.emissive = new THREE.Color(0xffffff);
-                //         child.material.emissiveIntensity = 1;
-                //     }
-                // });
-
-                console.log("Đã treo đèn chùm và bật công tắc điện!");
-                makeInteractable(chandelier, 'Chandelier', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi treo đèn rồi sếp ơi: ", error);
-            }
-        );
-        // =================================================================
-        // BƯỚC 6.5: TỰ CHẾ GIÁ ĐỂ GẬY BI-A 3D SANG CHẢNH (GẮN SÁT TƯỜNG)
-        // =================================================================
-        const rackGroup = new THREE.Group();
-
-        // 1. Định nghĩa chất liệu màu sắc
-        // Màu gỗ sẫm cổ điển cho khung giá đỡ (tiệp màu với thành bàn bi-a)
-        const rackWoodMat = new THREE.MeshStandardMaterial({ 
-            color: 0x2b1810, 
-            roughness: 0.5 
-        });
-        // Màu gỗ sáng cho thân gậy, màu đen cho tay cầm và màu trắng cho đầu cơ
-        const cueShaftMat = new THREE.MeshStandardMaterial({ color: 0xe5c298, roughness: 0.4 });
-        const cueHandleMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7 });
-        const cueTipMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.9 });
-
-        // 2. LẮP RÁP KHUNG GIÁ ĐỠ ĐỨNG (Y hệt kết cấu ảnh mẫu của bạn)
-        // Tấm đế nằm sát sàn nhà
-        const baseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.18), rackWoodMat);
-        baseMesh.position.y = 0.02; // Nâng lên một nửa chiều cao để nằm khít trên sàn y=0
-        rackGroup.add(baseMesh);
-
-        // Tấm lưng phẳng dựa thẳng vào vách tường
-        const backMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.02), rackWoodMat);
-        backMesh.position.set(0, 0.6, -0.08); // Đẩy lùi sát rìa sau của tấm đế
-        rackGroup.add(backMesh);
-
-        // Kệ lửng phía trên (thanh có lỗ giữ ngọn gậy)
-        const topLipMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.12), rackWoodMat);
-        topLipMesh.position.set(0, 1.1, -0.03);
-        rackGroup.add(topLipMesh);
-
-        // 3. TỰ ĐỘNG CHẾ TẠO 4 CÂY GẬY BI-A XẾP VÀO GIÁ
-        // Tọa độ X để xếp 4 cây gậy dàn hàng ngang đều nhau trên giá đỡ
-        const cueSlotsX = [-0.15, -0.05, 0.05, 0.15];
-
-        cueSlotsX.forEach(function(xPos) {
-            const singleCue = new THREE.Group();
-
-            // Thân gậy thon dài (Dùng hình trụ CylinderGeometry)
-            // Tham số: (Bán kính đỉnh, Bán kính đáy, Chiều cao, Số mặt cắt)
-            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.012, 1.1, 8), cueShaftMat);
-            shaft.position.y = 0.55; // Tâm khối trụ nằm ở giữa vách dọc
-            singleCue.add(shaft);
-
-            // Đoạn chuôi bọc da màu đen ở dưới tay cầm (Dài 30cm)
-            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.0122, 0.3, 8), cueHandleMat);
-            handle.position.y = 0.15;
-            singleCue.add(handle);
-
-            // Đầu ngọn gậy bọc sừng màu trắng tinh khôi ở trên cùng (Cao 3cm)
-            const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.0063, 0.03, 8), cueTipMat);
-            tip.position.y = 1.115;
-            singleCue.add(tip);
-
-            // Đặt cây gậy vừa chế vào đúng khe cắm trên giá đỡ
-            singleCue.position.set(xPos, 0.04, -0.03);
+        // DO VAT PHONG BI A
+        loader.load('model.glb', function (gltf) {
+            const usagi = gltf.scene;
+            const usagiBox = new THREE.Box3().setFromObject(usagi);
+            const usagiHeight = usagiBox.max.y - usagiBox.min.y;
+            const usagiGroundY = 0.02;
             
-            // Thêm một chút độ nghiêng ngẫu nhiên siêu nhỏ cho thật, nhìn đỡ bị đơ cứng
-            singleCue.rotation.z = (Math.random() - 0.5) * 0.015;
-            singleCue.rotation.x = (Math.random() - 0.5) * 0.015;
+            const usagiPivot = new THREE.Group();
+            usagi.position.set(0, -usagiBox.min.y, 0);
+            usagi.rotation.set(0, Math.PI, 0);
+            usagiPivot.add(usagi);
+            usagiPivot.position.set(0, usagiGroundY, 2.5);
+            usagiPivot.rotation.y = -2 * Math.PI; 
 
-            rackGroup.add(singleCue);
+            usagiPivot.userData = { groundY: usagiGroundY, minY: usagiBox.min.y, tableY: tableTopY > 0 ? tableTopY : null, jumpHeight: Math.max(0.9, usagiHeight * 0.8) };
+            usagiModel = usagiPivot;
+            billiardRoomGroup.add(usagiModel);
+            makeInteractable(usagiModel, 'Usagi', true);
+
+            loader.load('billiard_cue.glb', function(gltfCue) {
+                const cue = gltfCue.scene;
+                cue.position.set(0.6, 0.6, -0.2); 
+                cue.rotation.set(0, Math.PI/2, Math.PI/4);
+                usagiPivot.add(cue);
+            });
         });
 
-        // 4. ĐỊNH VỊ CẢ CỤM GIÁ GẬY ÉP SÁT VÀO VÁCH TƯỜNG PHÒNG 6x10
-        // Căn phòng rộng 6 (X từ -3 đến 3), vách tường trái nằm ở X = -3.
-        // Ta đặt cụm này ở X = -2.88 để lưng giá dựa khít vào vách, dịch lên phía trên một chút (Z = -1)
-        rackGroup.position.set(-2.88, 0, 0);
-        
-        // Xoay góc 90 độ quanh trục Y để quay mặt vào phía trong bàn bi-a
-        rackGroup.rotation.y = Math.PI / 2;
-        rackGroup.scale.set(1.5, 1.5, 1.5); // Kích thước gốc đã vừa vặn, nếu muốn to hơn hoặc nhỏ hơn thì chỉnh con số này nhé (ví dụ: 0.8 hoặc 1.2)
-
-        billiardRoomGroup.add(rackGroup);
-
-        // =================================================================
-        // BƯỚC 6.6: LOAD SOFA MỚI + ÉP MÀU TRẮNG TINH KHÔI (IVORY WHITE)
-        // =================================================================
-        
-        // 1. TỰ CHẾ CHIẾC BÀN NHỎ TRÒN GIỮA 2 GHẾ (Giữ nguyên)
-        const smallTableGroup = new THREE.Group();
-        const tableWoodMat = new THREE.MeshStandardMaterial({ color: 0xc6ac8f, roughness: 0.4 });
-        
-        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 32), tableWoodMat);
-        tableTop.position.y = 0.45;
-        smallTableGroup.add(tableTop);
-        
-        const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45, 16), tableWoodMat);
-        tableLeg.position.y = 0.225;
-        smallTableGroup.add(tableLeg);
-        
-        const tableBase = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 32), tableWoodMat);
-        tableBase.position.y = 0.01;
-        smallTableGroup.add(tableBase);
-
-        smallTableGroup.position.set(0, 0, -4.2);
-        smallTableGroup.scale.set(1.5, 1.5, 1.5); // Tăng kích thước lên nếu thấy bàn nhỏ quá so với ghế
-        billiardRoomGroup.add(smallTableGroup);
-
-
-        // 2. LOAD FILE SOFA MỚI VÀ TẨY SẠCH MAP GỐC ĐỂ ÉP TRẮNG TINH KHÔI
-        loader.load(
-            'sofa.glb', 
-            function (gltf) {
-                const baseSofa = gltf.scene;
-
-                // TUYỆT CHIÊU TẨY MAP Y HỆT BÀN BI-A
-                baseSofa.traverse(function (child) {
-                    if (child.isMesh && child.material) {
-                        
-                        // BƯỚC 1: Xoá bỏ hoàn toàn ảnh texture xám cũ để không bị trộn màu bẩn
-                        child.material.map = null; 
-                        
-                        // BƯỚC 2: Đổ màu trắng tuyệt đối (Snow White)
-                        child.material.color.setHex(0xc6747e); 
-                        
-                        // BƯỚC 3: Cấu hình lại bề mặt cho mịn màng, nhìn giống nỉ thạch cao sang trọng
-                        child.material.roughness = 0.5;
-                        child.material.metalness = 0.0;
-                        
-                        // BƯỚC 4: Bắt buộc phải có dòng này để báo Three.js vẽ lại kết cấu mới
-                        child.material.needsUpdate = true;
+        loader.load('billiard_table.glb', function (gltf) {
+            const table = gltf.scene;
+            table.position.set(0, 0, 0); 
+            table.rotation.y = 3 * Math.PI / 2;
+            table.traverse(function (child) {
+                if (child.isMesh) {
+                    if (child.name === 'Billiards_GreenBoard_Material_#25_0') {
+                        child.material.map = null; child.material.color.setHex(0x00868b); child.material.needsUpdate = true; 
                     }
-                });
+                    if (child.name.includes('Billiard_Stick')) child.visible = false; 
+                }
+            });
 
-                // --- GHẾ TẠO BÊN TRÁI BÀN (X = -1.2) ---
-                const leftSofa = baseSofa.clone();
-                leftSofa.position.set(-1.5, 0, -4.2);
-                leftSofa.rotation.y = 0; 
-                leftSofa.scale.set(1.5, 1.5, 1.5); // Tăng kích thước lên nếu thấy ghế nhỏ quá so với bàn
-                billiardRoomGroup.add(leftSofa);
+            tableTopY = new THREE.Box3().setFromObject(table).max.y;
+            tableGroup.add(table); 
+            billiardRoomGroup.add(tableGroup);
+            createCustomBalls(tableTopY, billiardRoomGroup);
+            makeInteractable(tableGroup, 'Billiard Table', false);
+            resetBalls();
 
-                // --- GHẾ TẠO BÊN PHẢI BÀN (X = 1.2) ---
-                const rightSofa = baseSofa.clone();
-                rightSofa.position.set(1.5, 0, -4.2);
-                rightSofa.rotation.y = 0; 
-                rightSofa.scale.set(1.5, 1.5, 1.5); 
-                billiardRoomGroup.add(rightSofa);
-
-                console.log("Đã kích hoạt chiêu tẩy map, ghế đã trắng muốt!");
-                makeInteractable(leftSofa, 'Sofa', false);
-                makeInteractable(rightSofa, 'Sofa', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi load sofa: ", error);
-            }
-        );
-        // --- 6.7. LOAD CÂY NƯỚC / TỦ LẠNH (WATER FRIDGE) VÀO GÓC PHÒNG ---
-        loader.load(
-            'water_fridge.glb', // Tên chính xác file tủ nước của bạn
-            function (gltf) {
-                const fridge = gltf.scene;
-
-                // ĐẶT VÀO GÓC CHẾT: Sát tường trái (X = -2.5), nằm giữa giá gậy và sofa (Z = -3.2)
-                fridge.position.set(-2.5, 0, -3);
-
-                // XOAY HƯỚNG: Chếch một góc 45 độ (Math.PI / 4) hướng mặt ra giữa phòng 
-                // nhìn sẽ nghệ thuật và tự nhiên hơn là kê thẳng tuột vào tường
-                fridge.rotation.y = 0;
-
-                // MẸO SỬA KÍCH THƯỚC: Nếu cái tủ tải về quá khổng lồ hoặc bé tí teo,
-                // bạn hãy bỏ hai dấu gạch chéo ở dòng dưới và tinh chỉnh tỉ lệ (ví dụ: 0.1 hoặc 0.5)
-                // fridge.scale.set(1, 1, 1);
-
-                billiardRoomGroup.add(fridge);
-                console.log("Đã kê tủ nước vào góc phòng giữa sofa và giá gậy!");
-                makeInteractable(fridge, 'Water Fridge', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi không load được tủ nước sếp ơi: ", error);
-            }
-        );
-        // --- 6.8. LOAD CHIIKAWA (ĐỨNG GIỮA TỦ NƯỚC VÀ GIÁ CƠ, CÁCH TƯỜNG) ---
-        loader.load(
-            'chiikawa.glb', // Đổi tên file tải từ Sketchfab của bạn thành chiikawa.glb
-            function (gltf) {
-                const chiikawa = gltf.scene;
-
-                // ĐỊNH VỊ: Giữa tủ nước và giá cơ (Z = -2.1), cách xa tường trái (X = -1.8)
-                chiikawa.position.set(-1.5, 0.77, -1);
-
-                // XOAY HƯỚNG: Cho Chiikawa xoay mặt chếch về phía bàn bi-a để xem Usagi đánh bóng
-                chiikawa.rotation.y = Math.PI / 3; 
-
-                // MẸO SỬA KÍCH THƯỚC: Do model Chiikawa trên mạng đôi khi bị làm rất to,
-                // nếu thấy bé khổng lồ bằng cả cái bàn, hãy bật dòng dưới này lên để thu nhỏ lại nhé (ví dụ: 0.1 hoặc 0.3)
-                chiikawa.scale.set(0.3, 0.45, 0.4);
-
-                chiikawaModel = chiikawa;
-                billiardRoomGroup.add(chiikawa);
-                console.log("Chiikawa đã vào vị trí, đứng cực kỳ thoáng đãng!");
-                makeInteractable(chiikawaModel, 'Chiikawa', true);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi không dắt bé Chiikawa vào phòng được sếp ơi: ", error);
-            }
-        );
-        // =================================================================
-        // CẬP NHẬT 6.10: TỦ RƯỢU ÂM TƯỜNG 2D - BỎ QUA ĐÈN PHÒNG (MESHBASICMATERIAL)
-        // =================================================================
-        // Gọi đúng file 'wine_cabin.jpg' bạn vừa tải về
-        const cabinetTexture = textureLoader.load('wine_cabin.jpg'); 
-
-        // Giữ nguyên kích thước bề thế (Rộng 2.6m, Cao 2.0m)
-        const cabinetGeo = new THREE.BoxGeometry(2.6, 2.4, 0.001);
-        
-        // THẦN CHÚ: Sử dụng MeshBasicMaterial để lột bỏ hoàn toàn tác động của đèn scene
-        const cabinetMat = new THREE.MeshBasicMaterial({
-            map: cabinetTexture
+            const bottomGeo = new THREE.PlaneGeometry(2.6, 1.35); 
+            const bottomTexture = textureLoader.load('wreneven.jpg', function(texture) {
+                texture.colorSpace = THREE.SRGBColorSpace; texture.center.set(0.5, 0.5); texture.rotation = 0; 
+            });
+            const bottomMesh = new THREE.Mesh(bottomGeo, new THREE.MeshBasicMaterial({ map: bottomTexture, color: 0xffffff, side: THREE.DoubleSide }));
+            bottomMesh.rotation.x = Math.PI / 2; bottomMesh.rotation.z = Math.PI; bottomMesh.position.set(0, 0.6, 0); 
+            table.add(bottomMesh);
         });
 
-        const wineCabinet2D = new THREE.Mesh(cabinetGeo, cabinetMat);
+        loader.load('column.glb', function (gltf) {
+            const cornerPositions = [ { x: -2.75, z: -4.9 }, { x: 2.75, z: -4.9 }, { x: -2.75, z: 4.9 }, { x: 2.75, z: 4.9 } ];
+            cornerPositions.forEach(function(pos) {
+                const columnClone = gltf.scene.clone();
+                columnClone.position.set(pos.x, 0, pos.z); 
+                columnClone.scale.set(0.3, 0.3, 0.3); 
+                billiardRoomGroup.add(columnClone);
+                makeInteractable(columnClone, 'Pillar', false);
+            });
+        });
 
-        // ĐỊNH VỊ: Ép sát sạt vào vách sau (Z = 4.95 để không bị lún hẳn ra sau tường Z = 5)
-        wineCabinet2D.position.set(-1.3, 1.2, 4.99);
+        loader.load('chandelier.glb', function (gltf) {
+            const chandelier = gltf.scene;
+            chandelier.position.set(0, 2.5, 0);
+            chandelier.scale.set(0.03, 0.03, 0.03);
+            billiardRoomGroup.add(chandelier);
 
-        // XOAY HƯỚNG: Quay mặt có ảnh tủ rượu vào trong phòng bi-a
-        wineCabinet2D.rotation.y = Math.PI; 
+            const lampLight = new THREE.PointLight(0xffdfa9, 3, 8); 
+            lampLight.position.set(0, 2.3, 0); lampLight.castShadow = true; 
+            billiardRoomGroup.add(lampLight);
+            makeInteractable(chandelier, 'Chandelier', false);
+        });
 
-        billiardRoomGroup.add(wineCabinet2D);
-        console.log("Đã kích hoạt MeshBasicMaterial, tủ rượu tự tỏa sáng tự nhiên!");
-        makeInteractable(wineCabinet2D, 'Wine Cabinet', false);
+        loader.load('sofa.glb', function (gltf) {
+            const baseSofa = gltf.scene;
+            baseSofa.traverse(function (child) {
+                if (child.isMesh && child.material) {
+                    child.material.map = null; child.material.color.setHex(0xc6747e); child.material.roughness = 0.5; child.material.needsUpdate = true;
+                }
+            });
 
-        // =================================================================
-        // BƯỚC 6.11: TỰ CHẾ CỬA CÁCH ÂM BỌC DA MÚI RÚT (GẮN TƯỜNG PHẢI)
-        // =================================================================
+            const leftSofa = baseSofa.clone(); leftSofa.position.set(-1.5, 0, -4.2); leftSofa.scale.set(1.5, 1.5, 1.5);
+            const rightSofa = baseSofa.clone(); rightSofa.position.set(1.5, 0, -4.2); rightSofa.scale.set(1.5, 1.5, 1.5); 
+            billiardRoomGroup.add(leftSofa, rightSofa);
+            makeInteractable(leftSofa, 'Sofa', false); makeInteractable(rightSofa, 'Sofa', false);
+        });
+
+        loader.load('water_fridge.glb', function (gltf) {
+            const fridge = gltf.scene;
+            fridge.position.set(-2.5, 0, -3);
+            billiardRoomGroup.add(fridge);
+            makeInteractable(fridge, 'Water Fridge', false);
+        });
+
+        loader.load('chiikawa.glb', function (gltf) {
+            chiikawaModel = gltf.scene;
+            chiikawaModel.position.set(-1.5, 0.77, -1);
+            chiikawaModel.rotation.y = Math.PI / 3; 
+            chiikawaModel.scale.set(0.3, 0.45, 0.4);
+            billiardRoomGroup.add(chiikawaModel);
+            makeInteractable(chiikawaModel, 'Chiikawa', true);
+        });
+
+        loader.load('picture_frame.glb', function (gltf) {
+            const frame = gltf.scene;
+            frame.position.set(-2.8, 1.5, 3); frame.scale.set(0.7, 0.7, 0.7); 
+            billiardRoomGroup.add(frame);
+            makeInteractable(frame, 'Thắng Ngọt', false);
+        });
+
+        loader.load('stool.glb', function (gltf) {
+            stoolModel = gltf.scene;
+            stoolModel.position.set(-2.5, 0, 4.5); stoolModel.rotation.y = Math.PI/2;
+            billiardRoomGroup.add(stoolModel);
+            makeInteractable(stoolModel, 'Stool', false);
+        });
+
+        loader.load('air_condition_daikin.glb', function (gltf) {
+            const airCon = gltf.scene; airCon.position.set(0, 2.1, -4.85);
+            billiardRoomGroup.add(airCon); makeInteractable(airCon, 'Air Conditioner', false);
+        });
+
+        loader.load('drawer.glb', function (gltf) {
+            const drawer = gltf.scene; drawer.position.set(-2.8, 0.8, 1.5); drawer.scale.set(0.0015,0.0015,0.0015);
+            billiardRoomGroup.add(drawer); makeInteractable(drawer, 'Wooden Cabinet', false);
+        });
+
+        loader.load('minecraft.glb', function (gltf) {
+            const minecraft = gltf.scene; minecraft.position.set(-2.4, 0.95, 1.3); minecraft.scale.set(0.35,0.35,0.35); minecraft.rotation.y = 1.45*Math.PI; 
+            billiardRoomGroup.add(minecraft); makeInteractable(minecraft, 'Minecraft Figure', false);
+        });
+
+        loader.load('plant.glb', function (gltf) {
+            const plant = gltf.scene; plant.position.set(-2.5, 0.5, -2.4); plant.scale.set(1, 1.2, 1);
+            billiardRoomGroup.add(plant); makeInteractable(plant, 'Indoor Plant', false);
+        });
         const doorGroup = new THREE.Group();
 
         // 1. ĐỊNH NGHĨA CHẤT LIỆU
@@ -792,7 +381,7 @@ table.add(bottomMesh);
                 const yPos = (doorHeight - panelH) / 2 + (r * padH);
 
                 // Tạo khuy bấm tròn (Hình cầu SphereGeometry)
-                const button = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), buttonMat);
+                const button = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8), buttonMat);
                 // Cắm khuy lún nhẹ vào khe nối giữa các múi da
                 button.position.set(xPos, yPos, doorThickness / 2 + 0.018);
                 doorGroup.add(button);
@@ -807,7 +396,7 @@ table.add(bottomMesh);
         handleGroup.add(plate);
 
         // Thanh gạt ngang cầm tay (Hình trụ xoay ngang)
-        const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.1, 8), handleMat);
+        const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.1), handleMat);
         lever.rotation.x = Math.PI / 2; // Xoay ngang ra ngoài
         lever.position.set(0.03, 0.02, 0.02);
         handleGroup.add(lever);
@@ -829,497 +418,133 @@ table.add(bottomMesh);
         doorGroup.rotation.y = -Math.PI;
 
         billiardRoomGroup.add(doorGroup);
-        // =================================================================
-        // BƯỚC 6.12: LOAD ĐIỀU HÒA (AIR CONDITIONER) BẢN GLB ĐÃ CONVERT
-        // =================================================================
-        loader.load(
-            'air_condition_daikin.glb', // Tên file đã convert nhúng sẵn texture của bạn
-            function (gltf) {
-                const airConditioner = gltf.scene;
 
-                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
-                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
-                airConditioner.position.set(0, 2.1, -4.85);
+        // DO VAT TRANG TRI TU DUNG PHONG BI A
+        const smallTableGroup = new THREE.Group();
+        const tableWoodMat = new THREE.MeshStandardMaterial({ color: 0xc6ac8f, roughness: 0.4 });
+        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 32), tableWoodMat); tableTop.position.y = 0.45;
+        const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45, 16), tableWoodMat); tableLeg.position.y = 0.225;
+        const smallTableBase = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 32), tableWoodMat); smallTableBase.position.y = 0.01;
+        smallTableGroup.add(tableTop, tableLeg, smallTableBase);
+        smallTableGroup.position.set(0, 0, -4.2); smallTableGroup.scale.set(1.5, 1.5, 1.5); 
+        billiardRoomGroup.add(smallTableGroup);
 
-                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
-                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
-                airConditioner.rotation.y = 0; 
+        const cabinetTexture = textureLoader.load('wine_cabin.jpg'); 
+        const wineCabinet2D = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.4, 0.001), new THREE.MeshBasicMaterial({ map: cabinetTexture }));
+        wineCabinet2D.position.set(-1.3, 1.2, 4.95); wineCabinet2D.rotation.y = Math.PI; 
+        billiardRoomGroup.add(wineCabinet2D); makeInteractable(wineCabinet2D, 'Wine Cabinet', false);
 
-                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
-                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
-                // airConditioner.scale.set(1, 1, 1);
-
-                billiardRoomGroup.add(airConditioner);
-                console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
-                makeInteractable(airConditioner, 'Air Conditioner', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi lắp đặt điều hòa: ", error);
-            }
-        );
-        loader.load(
-            'drawer.glb', // Tên file đã convert nhúng sẵn texture của bạn
-            function (gltf) {
-                const drawer = gltf.scene;
-
-                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
-                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
-                drawer.position.set(-2.8, 0.8, 1.5);
-                drawer.scale.set(0.0015,0.0015,0.0015);
-
-                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
-                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
-                drawer.rotation.y = 0; 
-
-                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
-                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
-                // airConditioner.scale.set(1, 1, 1);
-
-                billiardRoomGroup.add(drawer);
-                console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
-                makeInteractable(drawer, 'Wooden Cabinet', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi lắp đặt điều hòa: ", error);
-            }
-        );
-        loader.load(
-            'minecraft.glb', // Tên file đã convert nhúng sẵn texture của bạn
-            function (gltf) {
-                const minecraft = gltf.scene;
-
-                // ĐỊNH VỊ: Treo cao sát trần (Y = 2.1), chính giữa vách sau (X = 0), ép sát tường sau (Z = -4.85)
-                // Vị trí này sẽ nằm ngay trên đỉnh đầu khu vực ghế bành tròn và bàn trà của sếp
-                minecraft.position.set(-2.4, 0.95, 1.3);
-                minecraft.scale.set(0.35,0.35,0.35);
-
-                // XOAY HƯỚNG: Quay mặt thổi gió ra hướng bàn bi-a giữa phòng
-                // Nếu sau khi lưu code mà thấy điều hòa bị quay ngược mặt úp vào tường, sếp sửa thành Math.PI nhé
-                minecraft.rotation.y = 1.45*Math.PI; 
-
-                // MẸO SỬA KÍCH THƯỚC: Các file 3D convert đôi khi bị lệch tỉ lệ rất nặng
-                // Nếu load vào thấy nó to bằng cái bàn bi-a hoặc bé như bao thuốc, sếp bật dòng scale dưới này lên để chỉnh (ví dụ: 0.1 hoặc 0.05)
-                // airConditioner.scale.set(1, 1, 1);
-
-                billiardRoomGroup.add(minecraft);
-                console.log("Điều hòa hoàng gia đã lên vách sau ngon lành cành đào!");
-                makeInteractable(minecraft, 'Minecraft Figure', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi lắp đặt điều hòa: ", error);
-            }
-        );
-        // --- 6.12. LOAD CÂY CẠNH CÂY NƯỚC / TỦ LẠNH (WATER FRIDGE) ---
-        loader.load(
-            'plant.glb', 
-            function (gltf) {
-                const plant = gltf.scene;
-
-                plant.position.set(-2.5, 0.5, -2.4);
-
-                // XOAY HƯỚNG: Chếch một góc 45 độ (Math.PI / 4) hướng mặt ra giữa phòng 
-                // nhìn sẽ nghệ thuật và tự nhiên hơn là kê thẳng tuột vào tường
-                plant.rotation.y = 0;
-
-                // MẸO SỬA KÍCH THƯỚC: Nếu cái tủ tải về quá khổng lồ hoặc bé tí teo,
-                // bạn hãy bỏ hai dấu gạch chéo ở dòng dưới và tinh chỉnh tỉ lệ (ví dụ: 0.1 hoặc 0.5)
-                plant.scale.set(1, 1.2, 1);
-
-                billiardRoomGroup.add(plant);
-                console.log("Đã kê cây!");
-                makeInteractable(plant, 'Indoor Plant', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi không load được cayc sếp ơi: ", error);
-            }
-        );
-        // --- 6.7. LOAD CÂY NƯỚC / TỦ LẠNH (WATER FRIDGE) VÀO GÓC PHÒNG ---
-        // --- CHUYỂN HỘ KHẨU HACHIWARE SANG PHÒNG KHÁCH ---
-        loader.load(
-            'hachiware.glb',
-            function (gltf) {
-                const hachiware = gltf.scene;
-
-                // 1. CHỈNH LẠI VỊ TRÍ (POSITION)
-                hachiware.position.set(-1.0, 1.2, -1.8);
-
-                // 2. CHỈNH LẠI HƯỚNG MẶT (ROTATION)
-                // Đổi từ Math.PI thành 0 để bé quay mặt thẳng ra giữa phòng. 
-                // Cộng thêm một chút góc (Math.PI / 12) để bé hơi nghiêng đầu nhìn sang phải trông tự nhiên hơn.
-                hachiware.rotation.y = 0 + (3*Math.PI / 2); 
-                
-                hachiware.scale.set(1.1, 1.5, 1.3);
-
-                hachiwareModel = hachiware; 
-                
-                // Thêm vào phòng khách
-                LivingRoomGroup.add(hachiware);
-                
-                // QUAN TRỌNG: Lưu lại tọa độ Y mới của mặt ghế sofa để khi sếp click cho bé nhảy, bé sẽ rơi trúng nệm chứ không rơi xuyên xuống đất.
-                hachiwareModel.userData.baseY = 1.2; 
-
-                console.log("Đã vớt Hachiware lên khỏi sàn và cho ngồi đệm!");
-                makeInteractable(hachiwareModel, 'Hachiware', true);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi không load được Hachiware: ", error);
-            }
-        );
-        // --- LOAD MIKU VÀO PHÒNG KHÁCH ---
-        loader.load(
-            'hatsune_miku.glb',
-            function (gltf) {
-                const miku = gltf.scene;
-
-                // Đặt đứng cạnh Hachiware trên sofa (ví dụ lệch sang phải một chút)
-                miku.position.set(-2, 0.5, -1.8); 
-                
-                // Xoay mặt nhìn ra ngoài giống Hachiware
-                miku.rotation.y = Math.PI / 4;
-                
-                // Miku thường là model người thật nên scale có thể khác, sếp chỉnh con số này cho vừa ý nhé
-                miku.scale.set(0.01, 0.01, 0.01); 
-
-                LivingRoomGroup.add(miku);
-                
-                // Lưu lại mốc Y để bé cũng nhảy tại chỗ như Hachiware
-                miku.userData.baseY = miku.position.y;
-                
-                console.log("Miku đã xuất hiện tại phòng khách!");
-                makeInteractable(miku, 'Hatsune Miku', true);
-                
-                // Đẩy vào mảng để animate() nhận diện
-                // Sếp thêm dòng này vào đầu file khai báo biến nếu cần: let mikuModel = null;
-                mikuModel = miku; 
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi không load được Miku: ", error);
-            }
-        );
-        // =================================================================
-        // BƯỚC 6.13: TREO KHUNG TRANH + DÂN ĐÈ ẢNH 2D LÊN TRÊN (FIX LỖI CHUNG MESH)
-        // =================================================================
-        // 1. Nạp tấm ảnh mới của bạn
-        const myPictureTex = textureLoader.load('Thang_Ngot.jpg');
-        myPictureTex.flipY = false; 
-
-        // 2. TẠO TẤM ẢNH PHẲNG 2D ĐỂ DÁN ĐÈ
-        // Kích thước ước lượng vừa khít lòng trong của khung (Rộng 0.48, Cao 0.6)
-        // Nếu sau khi lưu mà thấy ảnh bị tràn ra ngoài rìa gỗ, bạn chỉ cần giảm 2 số này xuống tí nhé
-        const photoGeo = new THREE.PlaneGeometry(0.68, 0.9);
-        const photoMat = new THREE.MeshBasicMaterial({ 
-            map: myPictureTex,
-            side: THREE.DoubleSide
-        });
-        const photoMesh = new THREE.Mesh(photoGeo, photoMat);
-
-        // ĐỊNH VỊ TẤM ẢNH: Trùng tọa độ với khung tranh nhưng nhích nhẹ trục Z ra ngoài (Z = -4.90)
-        // Mẹo nhích 0.02m này để tránh lỗi "Z-fighting" (hai mặt phẳng đè khít lên nhau gây rách hình)
-        photoMesh.position.set(-2.79, 1.5, 3);
-        photoMesh.rotation.y = 3*Math.PI/2;
-        photoMesh.rotation.z = Math.PI;
+        const photoMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 0.9), new THREE.MeshBasicMaterial({ map: textureLoader.load('Thang_Ngot.jpg'), side: THREE.DoubleSide }));
+        photoMesh.position.set(-2.79, 1.5, 3); photoMesh.rotation.y = -3*Math.PI/2; photoMesh.rotation.z = -Math.PI;
         billiardRoomGroup.add(photoMesh);
 
-        // 3. LOAD KHUNG TRANH 3D LÀM BỆ ĐỠ PHÍA SAU
-        loader.load(
-            'picture_frame.glb', 
-            function (gltf) {
-                const frame = gltf.scene;
-
-                // Nằm ngay sau tấm ảnh một chút (Z = -4.92)
-                frame.position.set(-2.8, 1.5, 3);
-                frame.rotation.y = 0; 
-                frame.scale.set(0.7, 0.7, 0.7); 
-
-                billiardRoomGroup.add(frame);
-                console.log("Ảo thuật dán đè thành công! Tranh mới đã lên khung mượt mà.");
-                makeInteractable(frame, 'Thắng Ngọt', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi tải khung tranh: ", error);
-            }
-        );
-        // === DORAEMON NẰM NGHỈ DƯỠNG TRÊN LOUNGE CHAIR ===
-loader.load('doraemon.glb', (gltf) => {
-    doraemonModel = gltf.scene;
-    doraemonModel.scale.set(1, 1, 1);
-    
-    // 1. THUẬT TOÁN CHỐNG VẶN XOẮN: Đổi thứ tự góc xoay thành YXZ
-    // Xoay mặt đúng hướng trước (Y), sau đó mới ngả lưng (X)
-    doraemonModel.rotation.order = 'YXZ';
-    
-    // 2. XOAY GÓC: Ngả lưng sâu (-Math.PI / 2.2) và quay mặt ra hồ (Math.PI / 2)
-    doraemonModel.rotation.set(-Math.PI / 2.8, Math.PI / 2, 0); 
-    
-    // 3. TỊNH TIẾN VỊ TRÍ BÙ TRỪ:
-    // X = -1.35: Kéo thân trượt lên phía trước ghế một chút để đỉnh đầu không đâm xuyên qua tựa lưng.
-    // Y = 0.45: Nâng cao người lên để nằm êm ái trên mặt nệm, không bị lún chìm.
-    // Z = 3.0: Căn giữa mặt ghế.
-    doraemonModel.position.set(-1.1, 0.7, 3.0);
-    
-    PoolRoomGroup.add(doraemonModel);
-    console.log("Doraemon đã nằm nghỉ dưỡng đúng tư thế chuẩn!");
-});
-        // ========================
-        // BƯỚC 6.17: LOAD GHẾ ĐẨU
-        //=========================
-        loader.load(
-            'stool.glb',
-            function (gltf) {
-                const stool = gltf.scene;
-                stool.position.set(-2.5, 0, 4.5);
-                stool.rotation.y = Math.PI/2;
-                stool.scale.set(1, 1, 1);
-
-                billiardRoomGroup.add(stool);
-                stoolModel = stool;
-                console.log("Ghế đẩu thành công!");
-                makeInteractable(stool, 'Stool', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi ghế đẩu: ", error);
-            }
-        );
-
-        // =================================================================
-        // BƯỚC MỚI: DỰNG PHÒNG BÊN TRÁI (Cách phòng bi-a 2m)
-        // =================================================================
+        // PHONG KHACH
         const LivingRoomGroup = new THREE.Group();
         LivingRoomGroup.position.set(0, 0, 11); 
         scene.add(LivingRoomGroup);
 
-        const LivingRoomWallMat = new THREE.MeshStandardMaterial({ 
-            color: 0x4a7c82, // Sếp có thể thay đổi mã màu Hex (0x...) ở đây tuỳ ý nhé!
-            roughness: 0.8 
-        });
+        const LivingRoomWallMat = new THREE.MeshStandardMaterial({ color: 0x4a7c82, roughness: 0.8 });
 
-        // 1. Sàn phòng mới (Dùng chung material hoặc bạn có thể tạo material gạch ngói tuỳ ý)
         const LivingRoomFloor = new THREE.Mesh(new THREE.PlaneGeometry(6, 8), floorMaterial);
         LivingRoomFloor.rotation.x = -Math.PI / 2;
         LivingRoomGroup.add(LivingRoomFloor);
 
-        // 2. Tường bên phải (Phòng khách)
         const LivingRoomRightWall = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 0.05), LivingRoomWallMat);
         LivingRoomRightWall.position.set(0, 1.25, -4);
         LivingRoomGroup.add(LivingRoomRightWall);
 
-        // 3. Tường sau (Phòng khách)
         const LivingRoomBackWall = new THREE.Mesh(new THREE.BoxGeometry(8, 2.5, 0.05), LivingRoomWallMat);
-        LivingRoomBackWall.rotation.y = Math.PI / 2;
-        LivingRoomBackWall.position.set(-3.1, 1.25, 0);
+        LivingRoomBackWall.rotation.y = Math.PI / 2; LivingRoomBackWall.position.set(-3.1, 1.25, 0);
         LivingRoomGroup.add(LivingRoomBackWall);
 
-        // 4. Tường bên trái (Phòng khách)
         const LivingRoomLeftWall = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 0.05), LivingRoomWallMat);
         LivingRoomLeftWall.position.set(0, 1.25, 4);
         LivingRoomGroup.add(LivingRoomLeftWall);
 
-        loader.load(
-            'livingroom.glb',
-            function (gltf) {
-                const living = gltf.scene;
-                living.position.set(0.1, 0, 0); //dài cao rộng
-                living.rotation.y = 3*Math.PI/2;
-                living.scale.set(0.013, 0.01, 0.0183);
+        // DO VAT PHONG KHACH
+        loader.load('livingroom.glb', function (gltf) {
+            const living = gltf.scene; living.position.set(0.1, 0, 0); living.rotation.y = 3*Math.PI/2; living.scale.set(0.013, 0.01, 0.0183);
+            LivingRoomGroup.add(living); makeInteractable(living, 'Living Room Furniture', false);
+        });
 
-                LivingRoomGroup.add(living); 
-                console.log("Phòng khách đã loại bỏ tường sàn thành công!");
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi load phòng khách: ", error); 
-                makeInteractable(living, 'Living Room Furniture', false);
-            }
-        );
-        // BƯỚC MỚI: DỰNG TV TREO TƯỜNG PHÒNG KHÁCH (DÁN ẢNH RONALDO)
-    // =================================================================
-    // 1. Tạo hình dáng TV
-const tvGeo = new THREE.BoxGeometry(2.0, 1.2, 0.05);
+        loader.load('hachiware.glb', function (gltf) {
+            hachiwareModel = gltf.scene; hachiwareModel.position.set(-1.0, 1.2, -1.8); hachiwareModel.rotation.y = 3*Math.PI / 2; hachiwareModel.scale.set(1.1, 1.5, 1.3);
+            hachiwareModel.userData.baseY = 1.2; 
+            LivingRoomGroup.add(hachiwareModel); makeInteractable(hachiwareModel, 'Hachiware', true);
+        });
 
-// 2. Nạp ảnh và CHỈNH CHIỀU ẢNH
-const ronaldoTex = textureLoader.load('ronaldo.jpg'); 
-// Lệnh này quan trọng: lật ngược lại theo trục Y để ảnh đứng thẳng
-ronaldoTex.flipY = true; 
+        loader.load('hatsune_miku.glb', function (gltf) {
+            mikuModel = gltf.scene; mikuModel.position.set(2, 0, -1); mikuModel.rotation.y = -Math.PI/4; mikuModel.scale.set(0.008, 0.008, 0.008); 
+            mikuModel.userData.baseY = 0.5; 
+            LivingRoomGroup.add(mikuModel); makeInteractable(mikuModel, 'Hatsune Miku', true);
+        });
 
-const tvMat = new THREE.MeshBasicMaterial({ 
-    map: ronaldoTex, 
-    side: THREE.DoubleSide 
-});
+        const ronaldoTex = textureLoader.load('ronaldo.jpg'); ronaldoTex.flipY = true; 
+        const tvScreen = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.2, 0.05), new THREE.MeshBasicMaterial({ map: ronaldoTex, side: THREE.DoubleSide }));
+        tvScreen.position.set(0, 1.8, 3.8); tvScreen.rotation.y = Math.PI; tvScreen.rotation.z = Math.PI; 
+        LivingRoomGroup.add(tvScreen); makeInteractable(tvScreen, 'Ronaldo TV', false);
 
-const tvScreen = new THREE.Mesh(tvGeo, tvMat);
+        const worldcupTex = textureLoader.load('worldcup.jpg'); worldcupTex.flipY = true;
+        const worldcupMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), new THREE.MeshBasicMaterial({ map: worldcupTex, side: THREE.DoubleSide }));
+        worldcupMesh.position.set(0.5, 1.5, -3.95); worldcupMesh.rotation.y = -Math.PI;
+        LivingRoomGroup.add(worldcupMesh); makeInteractable(worldcupMesh, 'World Cup Poster', false);
 
-// 3. ĐỊNH VỊ VÀ XOAY
-// Nếu ảnh vẫn bị ngược khi treo trên tường, sếp hãy đổi rotation thành Math.PI/2 hoặc -Math.PI/2
-tvScreen.position.set(0, 1.8, 3.8); 
-tvScreen.rotation.y = Math.PI; 
+        // PHONG BE BOI
+        const PoolRoomGroup = new THREE.Group();
+        PoolRoomGroup.position.set(0, -3.5, 5); 
+        scene.add(PoolRoomGroup);
 
-// THÊM DÒNG NÀY ĐỂ LẬT ẢNH LẠI NẾU ĐANG BỊ NGƯỢC:
-tvScreen.rotation.z = Math.PI; 
+        const tileMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 2.0 }); 
+        const poolWallMat = new THREE.MeshStandardMaterial({ color: 0xffd1dc, roughness: 0.6 }); 
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x7AA2C4, roughness: 2.0 }); 
 
-LivingRoomGroup.add(tvScreen);
-makeInteractable(tvScreen, 'Ronaldo TV', false);
+        const poolWallLeft = new THREE.Mesh(new THREE.PlaneGeometry(20, 3.5), wallMat); poolWallLeft.rotation.y = Math.PI / 2; poolWallLeft.position.set(-3, 1.75, 0);
+        const poolWallBack = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.5), wallMat); poolWallBack.position.set(0, 1.75, -10);
+        PoolRoomGroup.add(poolWallLeft, poolWallBack);
 
-// =================================================================
-// DỰNG TRANH WORLDCUP TREO TƯỜNG PHẢI PHÒNG KHÁCH
-// =================================================================
+        const leftTile = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 20), tileMat); leftTile.position.set(-2.25, 0, 0);
+        const loungeTile = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 8.0), tileMat); loungeTile.position.set(-0.5, 0, 2.0);
+        const rightTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 20), tileMat); rightTile.position.set(2.75, 0, 0);
+        const frontTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 0.5), tileMat); frontTile.position.set(0.5, 0, 9.75);
+        const backTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 3.8), tileMat); backTile.position.set(0.5, 0, -9.75);
+        PoolRoomGroup.add(leftTile, loungeTile, rightTile, frontTile, backTile);
 
-// 1. Tạo mặt phẳng tranh (Rộng 1.5m, Cao 1.0m)
-const worldcupGeo = new THREE.PlaneGeometry(1.5, 1.0);
+        const pWallRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 17.2), poolWallMat); pWallRight.position.set(2.45, -0.5, 0.8);
+        const pWallBack = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 0.1), poolWallMat); pWallBack.position.set(0.5, -0.5, -7.9);
+        const pWallFront = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 0.1), poolWallMat); pWallFront.position.set(0.5, -0.5, 9.45);
+        const pWallLeftTop = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 6), poolWallMat); pWallLeftTop.position.set(-1.45, -0.5, -5);
+        const pWallLeftBottom = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 3.5), poolWallMat); pWallLeftBottom.position.set(-1.45, -0.5, 7.75);
+        const pWallLoungeTop = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.1), poolWallMat); pWallLoungeTop.position.set(-0.5, -0.5, -2);
+        const pWallLoungeBottom = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.1), poolWallMat); pWallLoungeBottom.position.set(-0.5, -0.5, 6);
+        const pWallLoungeRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 8.0), poolWallMat); pWallLoungeRight.position.set(0.45, -0.5, 2.0);
+        PoolRoomGroup.add(pWallRight, pWallBack, pWallFront, pWallLeftTop, pWallLeftBottom, pWallLoungeTop, pWallLoungeBottom, pWallLoungeRight);
 
-// 2. Nạp ảnh World Cup
-const worldcupTex = textureLoader.load('worldcup.jpg'); // Đảm bảo tên file ảnh chính xác
-worldcupTex.flipY = true;
+        const step1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 2.0), poolWallMat); step1.position.set(0.75, -0.7, 2.0); 
+        const step2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 2.0), poolWallMat); step2.position.set(1.25, -0.8, 2.0);
+        const step3 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 2.0), poolWallMat); step3.position.set(1.75, -0.9, 2.0);
+        PoolRoomGroup.add(step1, step2, step3);
 
-const worldcupMat = new THREE.MeshBasicMaterial({ 
-    map: worldcupTex, 
-    side: THREE.DoubleSide 
-});
-
-const worldcupMesh = new THREE.Mesh(worldcupGeo, worldcupMat);
-
-// 3. ĐỊNH VỊ TRÊN TƯỜNG PHẢI
-// Tường phải nằm ở vị trí X dương. 
-// Đặt X = 3.05 để áp sát tường (độ dày 0.05).
-// Đặt Y = 1.5 (tầm mắt).
-// Đặt Z = 0 (giữa phòng).
-worldcupMesh.position.set(0.5, 1.5, -3.95);
-
-// 4. XOAY HƯỚNG
-// Xoay -90 độ quanh trục Y để mặt tranh quay vào trong phòng
-worldcupMesh.rotation.y = -Math.PI;
-
-LivingRoomGroup.add(worldcupMesh);
-makeInteractable(worldcupMesh, 'World Cup Poster', false);
-
-console.log("Ảnh World Cup đã được treo sang tường phải!");
-
-        // =================================================================
-// DỰNG TẦNG TRỆT BỂ BƠI
-// =================================================================
-const PoolRoomGroup = new THREE.Group();
-PoolRoomGroup.position.set(0, -3.5, 5); 
-scene.add(PoolRoomGroup);
-
-// 1. CHẤT LIỆU CHO BỂ BƠI (Chỉ khai báo 1 lần duy nhất)
-// =================================================================
-const tileMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 2.0 }); 
-const poolWallMat = new THREE.MeshStandardMaterial({ color: 0xffd1dc, roughness: 0.6 }); // Đá hồng nhạt
-const wallMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 2.0 }); // Tường hầm tối màu
-// =================================================================
-// 2. DỰNG TƯỜNG BAO QUANH TẦNG HẦM
-// =================================================================
-// Tường trái hầm
-const poolWallLeft = new THREE.Mesh(new THREE.PlaneGeometry(20, 3.5), wallMat);
-poolWallLeft.rotation.y = Math.PI / 2;
-poolWallLeft.position.set(-3, 1.75, 0);
-PoolRoomGroup.add(poolWallLeft);
-
-// Tường sau hầm
-const poolWallBack = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.5), wallMat);
-poolWallBack.position.set(0, 1.75, -10);
-PoolRoomGroup.add(poolWallBack);
-
-// =================================================================
-        // 3. XÂY SÀN GẠCH (TẠO SẢNH DECK DÀI 8M ĐỂ ĐẶT CẦU TRƯỢT)
-        // =================================================================
-        // Hành lang chạy dọc vách tường trái (Rộng 1.5m)
-        const leftTile = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 20), tileMat);
-        leftTile.position.set(-2.25, 0, 0);
-        PoolRoomGroup.add(leftTile);
-
-        // BỤC SẢNH DÀI: Từ cửa thang máy kéo dài ra để đặt cầu trượt (Rộng 2m, Dài 8m)
-        const loungeTile = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 8.0), tileMat);
-        loungeTile.position.set(-0.5, 0, 2.0); // Bao phủ khu vực từ Z = 0 đến Z = 8
-        PoolRoomGroup.add(loungeTile);
-
-        // Viền phải (Rộng 0.5m)
-        const rightTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 20), tileMat);
-        rightTile.position.set(2.75, 0, 0);
-        PoolRoomGroup.add(rightTile);
-
-        // Viền trước và sau
-        const frontTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 0.5), tileMat);
-        frontTile.position.set(0.5, 0, 9.75);
-        PoolRoomGroup.add(frontTile);
-
-        const backTile = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 3.8), tileMat);
-        backTile.position.set(0.5, 0, -9.75);
-        PoolRoomGroup.add(backTile);
-
-        // =================================================================
-        // 4. XÂY LÒNG BỂ BƠI (ÔM SÁT BỤC SẢNH)
-        // =================================================================
- 
-
-        // THÀNH HỒ BƠI (Cao 1.0m, chặn mép gạch)
-        const pWallRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 17.2), poolWallMat);
-        pWallRight.position.set(2.45, -0.5, 0.8);
-        PoolRoomGroup.add(pWallRight);
-
-        const pWallBack = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 0.1), poolWallMat);
-        pWallBack.position.set(0.5, -0.5, -7.9);
-        PoolRoomGroup.add(pWallBack);
-
-        const pWallFront = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 0.1), poolWallMat);
-        pWallFront.position.set(0.5, -0.5, 9.45);
-        PoolRoomGroup.add(pWallFront);
-
-        // Vách hồ áp sát hành lang trái
-        const pWallLeftTop = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 6), poolWallMat);
-        pWallLeftTop.position.set(-1.45, -0.5, -5);
-        PoolRoomGroup.add(pWallLeftTop);
-
-        const pWallLeftBottom = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 3.5), poolWallMat);
-        pWallLeftBottom.position.set(-1.45, -0.5, 7.75);
-        PoolRoomGroup.add(pWallLeftBottom);
-
-        // Vách hồ bao quanh BỤC SẢNH (Chặn nước khỏi tràn lên sảnh 2x8)
-        const pWallLoungeTop = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.1), poolWallMat);
-        pWallLoungeTop.position.set(-0.5, -0.5, -2);
-        PoolRoomGroup.add(pWallLoungeTop);
-
-        const pWallLoungeBottom = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.1), poolWallMat);
-        pWallLoungeBottom.position.set(-0.5, -0.5, 6);
-        PoolRoomGroup.add(pWallLoungeBottom);
-
-        const pWallLoungeRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 8.0), poolWallMat);
-        pWallLoungeRight.position.set(0.45, -0.5, 2.0);
-        PoolRoomGroup.add(pWallLoungeRight);
-
-// =================================================================
-        // 5. CHỈ FILL NƯỚC (Giữ nguyên vách, không sửa lung tung)
-        // =================================================================
-
-        // =================================================================
-        // 5.5. BẬC THANG BỂ BƠI (Dịch sang trục X=0.75 đâm thẳng từ sảnh xuống)
-        // =================================================================
-        const step1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 2.0), poolWallMat);
-        step1.position.set(0.75, -0.7, 2.0); 
-        PoolRoomGroup.add(step1);
-
-        const step2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 2.0), poolWallMat);
-        step2.position.set(1.25, -0.8, 2.0);
-        PoolRoomGroup.add(step2);
-
-        const step3 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 2.0), poolWallMat);
-        step3.position.set(1.75, -0.9, 2.0);
-        PoolRoomGroup.add(step3);
-
-        // 6. GẮN ĐÈN CHO BỂ BƠI TỎA SÁNG
-        const poolLight = new THREE.PointLight(0x88ccff, 2, 15);
-        poolLight.position.set(0.5, 1, 0); // Dịch tâm đèn ra giữa hồ
+        const poolLight = new THREE.PointLight(0x88ccff, 2, 15); poolLight.position.set(0.5, 1, 0); 
         PoolRoomGroup.add(poolLight);
-        makeInteractable(poolWater, 'Swimming Pool', false);
 
-        loader.load(
+        const poolSunLight = new THREE.DirectionalLight(0xffffff, 2.5); poolSunLight.position.set(2, 5, 2); poolSunLight.castShadow = true;
+        PoolRoomGroup.add(poolSunLight);
+
+        // DO VAT PHONG BE BOI
+    const waterGeo = new THREE.BoxGeometry(3.9, 1.0, 17.4); 
+    const waterMat = new THREE.MeshStandardMaterial({
+    color: 0xa4f4f5, // Xanh dương đậm 
+    transparent: true,
+    opacity: 0.85,   
+    roughness: 0.05, 
+    metalness: 0.2
+});
+
+    poolWater = new THREE.Mesh(waterGeo, waterMat);
+    poolWater.position.set(0.5, -0.5, 0.8); 
+    poolWater.receiveShadow = true;
+    PoolRoomGroup.add(poolWater);
+loader.load(
             'slide.glb', // Tên file đã convert nhúng sẵn texture của bạn
             function (gltf) {
                 const slide = gltf.scene;
@@ -1346,252 +571,58 @@ PoolRoomGroup.add(poolWallBack);
                 console.error("Lỗi lắp đặt slide: ", error);
             }
         );
+        loader.load('shark.glb', (gltf) => {
+            sharkModel = gltf.scene; sharkModel.scale.set(2, 2, 2); sharkModel.position.set(0.5, -0.4, 0);
+            PoolRoomGroup.add(sharkModel);
+        });
 
-        loader.load(
-            'lounge.glb',
-            function (gltf) {
-                const lounge = gltf.scene;
-                lounge.position.set(-1.5, 0, 3);
-                lounge.scale.set(0.03,0.02,0.02);
-                lounge.rotation.y = Math.PI/2; 
+        loader.load('lounge.glb', function (gltf) {
+            const lounge = gltf.scene; lounge.position.set(-1.5, 0, 3); lounge.scale.set(0.03,0.02,0.02); lounge.rotation.y = Math.PI/2; 
+            PoolRoomGroup.add(lounge); makeInteractable(lounge, 'Lounge Chair', false);
+        });
 
-                PoolRoomGroup.add(lounge);
-                console.log("ghế đã lên cành đào!");
-                makeInteractable(lounge, 'Lounge Chair', false);
-            },
-            undefined,
-            function (error) {
-                console.error("Lỗi lắp đặt ghế bể bơi: ", error);
-            }
-        );
-            // Load tất cả vào nhóm PoolRoomGroup
-// === CÁ MẬP BƠI VÒNG QUANH BỂ ===
-loader.load('shark.glb', (gltf) => {
-    sharkModel = gltf.scene;
-    sharkModel.scale.set(1, 1, 1); // Scale 1-1-1 như sếp yêu cầu
-    sharkModel.position.set(0.5, -0.4, 0);
-    PoolRoomGroup.add(sharkModel);
-    console.log("Cá mập khổng lồ đã vào bể!");
-});
+        loader.load('doraemon.glb', (gltf) => {
+            doraemonModel = gltf.scene; doraemonModel.scale.set(1, 1, 1);
+            doraemonModel.rotation.order = 'YXZ'; doraemonModel.rotation.set(-Math.PI / 2.8, Math.PI / 2, 0); 
+            doraemonModel.position.set(-1.1, 0.7, 3.0);
+            PoolRoomGroup.add(doraemonModel);
+        });
 
-// Hệ thống hạt nước bắn lên khi Doraemon nhảy xuống bể
-const splashGeo = new THREE.SphereGeometry(0.04, 6, 6);
-const splashMat = new THREE.MeshBasicMaterial({ color: 0xaaddff, transparent: true, opacity: 0.8 });
-for (let i = 0; i < 20; i++) {
-    const drop = new THREE.Mesh(splashGeo, splashMat.clone());
-    drop.visible = false;
-    drop.userData = { vx: 0, vy: 0, vz: 0, active: false };
-    PoolRoomGroup.add(drop);
-    splashParticles.push(drop);
-}
+        // THANG MAY VA HANH LANG
+        const ElevatorGroup = new THREE.Group(); ElevatorGroup.position.set(-2.25, 0, 6); scene.add(ElevatorGroup);
 
-// --- NƯỚC BỂ BƠI LẤP ĐẦY VÀ ĐẬM MÀU ---
-const waterGeo = new THREE.BoxGeometry(3.9, 0.1, 17.4); 
-const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x004a7c, // Xanh dương đậm 
-    transparent: true,
-    opacity: 0.85,   
-    roughness: 0.05, 
-    metalness: 0.2
-});
-
-poolWater = new THREE.Mesh(waterGeo, waterMat);
-// Kéo mặt nước dâng lên sát mép trên cùng của thành hồ
-poolWater.position.set(0.5, -0.05, 0.8); 
-poolWater.receiveShadow = true;
-PoolRoomGroup.add(poolWater);
-
-// Lưu vị trí đỉnh gốc của nước để tính sóng
-const waterOrigPositions = poolWater.geometry.attributes.position.array.slice();
-
-// === ĐÈN CHIẾU XA ĐỂ TẠO BÓNG DƯỚI NƯỚC ===
-const poolSunLight = new THREE.DirectionalLight(0xffffff, 2.5);
-poolSunLight.position.set(2, 5, 2);
-poolSunLight.castShadow = true;
-poolSunLight.shadow.mapSize.width = 1024;
-poolSunLight.shadow.mapSize.height = 1024;
-PoolRoomGroup.add(poolSunLight);
-
-// Mặt phản chiếu ánh sáng dưới đáy bể (caustic effect giả)
-const poolFloorGeo = new THREE.PlaneGeometry(4.0, 17.5);
-const poolFloorMat = new THREE.MeshStandardMaterial({
-    color: 0x88ccff,
-    roughness: 0.8,
-    metalness: 0.0
-});
-const poolFloorMesh = new THREE.Mesh(poolFloorGeo, poolFloorMat);
-poolFloorMesh.rotation.x = -Math.PI / 2;
-poolFloorMesh.position.set(0.5, -1.5, 0.8);
-poolFloorMesh.receiveShadow = true;
-PoolRoomGroup.add(poolFloorMesh);
-// =================================================================
-        // BƯỚC MỚI: DỰNG CỘT THANG MÁY KHỐI HỘP ÔM KHÍT 3 MẶT TƯỜNG
-        // =================================================================
-        // 1. Xây "Đảo hạ cánh" giữa lòng bể bơi. 
-        // Kéo dài cho vừa khít khoảng trống 2m (Z=2) và ép sát mép trái
-        const elevatorPillar = new THREE.Mesh(
-    new THREE.BoxGeometry(1.5, 1.5, 2.0), 
-    poolWallMat // Gọi đúng biến đã khai báo ở trên
-);
-elevatorPillar.position.set(-2.25, -0.75, 1); 
-PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
-        // Tâm thang máy đặt ở X = -2.25 (để lưng chạm đúng tọa độ X = -3 của mép nhà)
-        elevatorPillar.position.set(-2.25, -0.75, 1); 
+        const elevatorPillar = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 2.0), poolWallMat); elevatorPillar.position.set(-2.25, -0.75, 1); 
         PoolRoomGroup.add(elevatorPillar);
-
-        // 2. Hệ thống Trụ Thang Máy Tổng Cố Định
-        const ElevatorGroup = new THREE.Group();
-        // Đẩy tâm thang máy lùi kịch về -2.25, nằm vừa vặn bịt kín khe hở 2m (Z=6)
-        ElevatorGroup.position.set(-2.25, 0, 6); 
-        scene.add(ElevatorGroup);
 
         const shaftMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.5 });
         const luxuryInoxMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8, roughness: 0.1 });
 
-        // 2.1. DỰNG 3 MẶT VÁCH KÍN THANG MÁY (Bịt kẽ hở giữa 2 phòng)
-        // Vách Lưng (Ép phẳng lỳ với mép tường trái của cả căn nhà X = -3)
-        const shaftBack = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 2.0), shaftMat);
-        shaftBack.position.set(-0.73, -0.5, 0); 
-        ElevatorGroup.add(shaftBack);
+        const shaftBack = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 2.0), shaftMat); shaftBack.position.set(-0.73, -0.5, 0); 
+        const shaftRight = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6, 0.04), shaftMat); shaftRight.position.set(0, -0.5, -0.98); 
+        const shaftLeft = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6, 0.04), shaftMat); shaftLeft.position.set(0, -0.5, 0.98); 
+        const shaftFrontLeft = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 0.4), shaftMat); shaftFrontLeft.position.set(0.73, -0.5, 0.8);
+        const shaftFrontRight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 0.4), shaftMat); shaftFrontRight.position.set(0.73, -0.5, -0.8);
+        const shaftFrontMiddle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.3, 1.2), shaftMat); shaftFrontMiddle.position.set(0.73, -0.65, 0); 
+        const shaftFrontTop = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 1.2), shaftMat); shaftFrontTop.position.set(0.73, 2.35, 0); 
+        ElevatorGroup.add(shaftBack, shaftRight, shaftLeft, shaftFrontLeft, shaftFrontRight, shaftFrontMiddle, shaftFrontTop);
 
-        // Vách Phải (Ép khít rịt vào tường phòng Bi-a Z = 5)
-        const shaftRight = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6, 0.04), shaftMat);
-        shaftRight.position.set(0, -0.5, -0.98); 
-        ElevatorGroup.add(shaftRight);
-
-        // Vách Trái (Ép khít rịt vào tường phòng Khách Z = 7)
-        const shaftLeft = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6, 0.04), shaftMat);
-        shaftLeft.position.set(0, -0.5, 0.98); 
-        ElevatorGroup.add(shaftLeft);
-
-        // 2.2. VÁCH MẶT TRƯỚC VÀ LỖ CỬA (Che mặt tiền, chừa lỗ cửa rộng 1.2m)
-        const shaftFrontLeft = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 0.4), shaftMat);
-        shaftFrontLeft.position.set(0.73, -0.5, 0.8);
-        ElevatorGroup.add(shaftFrontLeft);
-
-        const shaftFrontRight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 6, 0.4), shaftMat);
-        shaftFrontRight.position.set(0.73, -0.5, -0.8);
-        ElevatorGroup.add(shaftFrontRight);
-
-        const shaftFrontMiddle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.3, 1.2), shaftMat);
-        shaftFrontMiddle.position.set(0.73, -0.65, 0); // Đoạn tường ngăn giữa 2 tầng
-        ElevatorGroup.add(shaftFrontMiddle);
-        
-        const shaftFrontTop = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 1.2), shaftMat);
-        shaftFrontTop.position.set(0.73, 2.35, 0); // Đoạn tường phào chỉ trên trần
-        ElevatorGroup.add(shaftFrontTop);
-
-        // 3. TRANG TRÍ NỘI THẤT BÊN TRONG THANG MÁY (Ốp Inox Gold sang trọng)
         const inoxBack = new THREE.BoxGeometry(0.01, 2.2, 1.9);
+        const innerInoxBackT2 = new THREE.Mesh(inoxBack, luxuryInoxMat); innerInoxBackT2.position.set(-0.7, 1.1, 0); 
+        const innerInoxBackT1 = new THREE.Mesh(inoxBack, luxuryInoxMat); innerInoxBackT1.position.set(-0.7, -2.4, 0); 
+        ElevatorGroup.add(innerInoxBackT2, innerInoxBackT1);
 
-        const innerInoxBackT2 = new THREE.Mesh(inoxBack, luxuryInoxMat);
-        innerInoxBackT2.position.set(-0.7, 1.1, 0); // Nội thất Tầng 2
-        ElevatorGroup.add(innerInoxBackT2);
+        const interiorLightT2 = new THREE.PointLight(0xfffee0, 1.5, 3); interiorLightT2.position.set(0, 2.1, 0);
+        const interiorLightT1 = new THREE.PointLight(0xfffee0, 1.5, 3); interiorLightT1.position.set(0, -1.4, 0);
+        ElevatorGroup.add(interiorLightT2, interiorLightT1);
 
-        const innerInoxBackT1 = new THREE.Mesh(inoxBack, luxuryInoxMat);
-        innerInoxBackT1.position.set(-0.7, -2.4, 0); // Nội thất Tầng 1
-        ElevatorGroup.add(innerInoxBackT1);
-
-        // Đèn hắt trần buồng thang
-        const interiorLightT2 = new THREE.PointLight(0xfffee0, 1.5, 3);
-        interiorLightT2.position.set(0, 2.1, 0);
-        ElevatorGroup.add(interiorLightT2);
-
-        const interiorLightT1 = new THREE.PointLight(0xfffee0, 1.5, 3);
-        interiorLightT1.position.set(0, -1.4, 0);
-        ElevatorGroup.add(interiorLightT1);
-
-        // 4. HỆ THỐNG CỬA TRƯỢT (Nằm lọt lòng vách trước)
-        const doorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.2 });
-        const doorGeo = new THREE.BoxGeometry(0.02, 2.2, 0.6);
-
-        // Cửa trượt Tầng 2
-        const leftDoorT2 = new THREE.Mesh(doorGeo, doorMat);
-        leftDoorT2.position.set(0.73, 1.1, 0.3);
-        ElevatorGroup.add(leftDoorT2);
-
-        const rightDoorT2 = new THREE.Mesh(doorGeo, doorMat);
-        rightDoorT2.position.set(0.73, 1.1, -0.3);
-        ElevatorGroup.add(rightDoorT2);
-
-        // Cửa trượt Tầng 1
-        const leftDoorT1 = new THREE.Mesh(doorGeo, doorMat);
-        leftDoorT1.position.set(0.73, -2.4, 0.3);
-        ElevatorGroup.add(leftDoorT1);
-
-        const rightDoorT1 = new THREE.Mesh(doorGeo, doorMat);
-        rightDoorT1.position.set(0.73, -2.4, -0.3);
-        ElevatorGroup.add(rightDoorT1);
-
-        ElevatorGroup.userData = {
-            leftDoorT2: leftDoorT2, rightDoorT2: rightDoorT2,
-            leftDoorT1: leftDoorT1, rightDoorT1: rightDoorT1,
-            baseLeftZ: 0.3, baseRightZ: -0.3
-        };
-
-        makeInteractable(shaftBack, 'Luxury Elevator Shaft', false);
-
-        // =================================================================
-        // BƯỚC MỚI: DỰNG SÀN HÀNH LANG (NỐI PHÒNG BI-A VÀ PHÒNG KHÁCH)
-        // =================================================================
-        // Khoảng trống từ cửa thang máy (X = -1.5) ra đến mép ngoài nhà (X = 3) là 4.5m
-        // Bề rộng của khe hở giữa 2 phòng là 2m (Từ Z = 5 đến Z = 7)
-        
-        // Tạo mặt sàn có độ dày nhẹ (0.05) để từ dưới bể bơi nhìn lên thấy trần hành lang
-        const corridorFloor = new THREE.Mesh(
-            new THREE.BoxGeometry(4.54, 0.05, 2.0), 
-            floorMaterial // Dùng chung vân gỗ với phòng Bi-a cho đồng bộ
-        );
-        
-        // Căn giữa mặt sàn vào đúng khoảng trống (X = 0.75, Z = 6)
-        // Đặt Y = -0.025 để mặt trên của hành lang phẳng tuyệt đối với mặt sàn gỗ 2 phòng (Y = 0)
+        const corridorFloor = new THREE.Mesh(new THREE.BoxGeometry(4.54, 0.05, 2.0), floorMaterial);
         corridorFloor.position.set(0.75, -0.025, 6); 
-        
         scene.add(corridorFloor);
 
-        // 7. VÒNG LẶP RENDER
-        // ==========================================
-        // 2. HỆ THỐNG DẪN ĐƯỜNG ĐI TUẦN TRA QUANH BÀN
-        // ==========================================
-        const sharedRoute = [
-            { x: -1.5, z: 2.5 },  
-            { x: 1.5, z: 2.5 },   
-            { x: 1.5, z: -2.5 },  
-            { x: -1.5, z: -2.5 }  
-        ];
-
-        const patrolRoutes = { chiikawa: sharedRoute };
-        const agentStates = { chiikawa: { targetIndex: 2, speed: 0.02 } };
-
-        function updateMovement(model, name) {
-            if (!model) return; 
-            const route = patrolRoutes[name];
-            const state = agentStates[name];
-            const targetPos = route[state.targetIndex];
-
-            const dx = targetPos.x - model.position.x;
-            const dz = targetPos.z - model.position.z;
-            const distance = Math.sqrt(dx * dx + dz * dz);
-
-            if (distance < 0.1) {
-                state.targetIndex = (state.targetIndex + 1) % route.length;
-            } else {
-                model.position.x += (dx / distance) * state.speed;
-                model.position.z += (dz / distance) * state.speed;
-                const targetAngle = Math.atan2(dx, dz); 
-                
-                let angleDiff = targetAngle - model.rotation.y;
-                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                model.rotation.y += angleDiff * 0.05; 
-            }
-        }
-        // --- CODE THÊM: SỰ KIỆN CHUỘT ---
+        // CAI DAT SU KIEN CHUOT
         window.addEventListener('mousemove', (event) => {
-            // Đổi tọa độ chuột sang chuẩn Three.js (-1 đến 1)
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            // Bảng tên chạy theo chuột
             nameTag.style.left = event.clientX + 15 + 'px';
             nameTag.style.top = event.clientY + 15 + 'px';
         });
@@ -1603,15 +634,16 @@ PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
                 const clickedMesh = intersects[0].object;
                 if (clickedMesh.userData.isCharacter) {
                     const character = clickedMesh.userData.parentGroup;
-                    // Bật công tắc nhảy
                     if (!character.userData.isJumping) {
                         character.userData.isJumping = true;
-                        character.userData.jumpVelocity = 0.15; // Lực nảy
-                        character.userData.jumpBaseY = character.position.y; // Nhớ vị trí gốc
+                        character.userData.jumpVelocity = 0.15; 
+                        character.userData.jumpBaseY = character.position.y; 
                     }
                 }
             }
         });
+
+        // VONG LAP RENDER CHINH
         function animate() {
             requestAnimationFrame(animate);
 
@@ -1620,9 +652,8 @@ PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
                 controls.target.lerp(targetView.target, 0.05);
                 if (camera.position.distanceTo(targetView.position) < 0.01) isTransitioning = false;
             }
-
             controls.update();
-            // 1. Logic Hiện Tên (Hover)
+
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(interactables, false);
             if (intersects.length > 0) {
@@ -1634,274 +665,143 @@ PoolRoomGroup.add(elevatorPillar); // Đóng ngoặc đúng chỗ này
                 document.body.style.cursor = 'default';
             }
 
-            // 2. Logic Trọng Lực Nhảy (Click)
             const allCharacters = [usagiModel, chiikawaModel, hachiwareModel];
             allCharacters.forEach(char => {
                 if (char && char.userData.isJumping) {
                     char.position.y += char.userData.jumpVelocity; 
-                    char.userData.jumpVelocity -= 0.008; // Trọng lực kéo xuống
-                    // Rớt chạm đất thì dừng
+                    char.userData.jumpVelocity -= 0.008; 
                     if (char.position.y <= char.userData.jumpBaseY) {
                         char.position.y = char.userData.jumpBaseY;
                         char.userData.isJumping = false;
                     }
                 }
             });
-        // --- HACHIWARE & MIKU NHẢY CỔ VŨ ---
-        const time = Date.now() * 0.005; 
-        const jumpHeight = 0.2; 
-        
-        if (hachiwareModel && hachiwareModel.userData.baseY !== undefined) {
-            hachiwareModel.position.y = hachiwareModel.userData.baseY + Math.abs(Math.sin(time)) * jumpHeight;
-        }
-        
-        if (mikuModel && mikuModel.userData.baseY !== undefined) {
-            mikuModel.position.y = mikuModel.userData.baseY + Math.abs(Math.sin(time)) * jumpHeight;
-        }
 
-        // --- SIÊU KỊCH BẢN: CHIIKAWA ĐẨY GHẾ -> USAGI NHẢY LÊN GHẾ -> LÊN BÀN -> LẬT (700 frames) ---
-        if (usagiModel && tableGroup && chiikawaModel && stoolModel) {
-            flipTimer++;
-            const uGroundY = usagiModel.userData?.groundY || 0.02;
-            const uTableY = usagiModel.userData?.tableY || 1.15;
-            const stoolHeight = 0.45; // Chiều cao ước tính của mặt ghế đẩu
-
-            // Tọa độ gốc cho Chiikawa và Ghế
-            const stoolStartX = -2.5, stoolStartZ = 4.5;
+            const time = Date.now() * 0.005; 
+            const jumpHeight = 0.2; 
             
-            // SỬA Ở ĐÂY: Đẩy vị trí ghế ra xa hơn một chút (ví dụ: Z = 2.1 thay vì 1.8)
-            const stoolEndX = 0, stoolEndZ = 2.1; 
-            
-            // Chiikawa cũng cần dừng lại ở vị trí xa hơn để nhường chỗ
-            const chiikawaStartX = -2.5, chiikawaStartZ = 4.9; 
-            const chiikawaEndX = 0, chiikawaEndZ = 2.5; // Xa hơn Z = 2.2
-            if (flipTimer < 120) {
-                // GIAI ĐOẠN 1 (0 -> 120): Chiikawa hì hục đẩy ghế từ góc phòng ra cho Usagi
-                const progress = flipTimer / 120;
-                
-                // Ghế trượt tới
-                stoolModel.position.x = stoolStartX + (stoolEndX - stoolStartX) * progress;
-                stoolModel.position.z = stoolStartZ + (stoolEndZ - stoolStartZ) * progress;
-                
-                // Chiikawa đi theo sau đẩy
-                chiikawaModel.position.x = chiikawaStartX + (chiikawaEndX - chiikawaStartX) * progress;
-                chiikawaModel.position.z = chiikawaStartZ + (chiikawaEndZ - chiikawaStartZ) * progress;
-                
-                // Chiikawa quay mặt về hướng di chuyển
-                const angle = Math.atan2(stoolEndX - stoolStartX, stoolEndZ - stoolStartZ);
-                chiikawaModel.rotation.y = angle;
+            if (hachiwareModel && hachiwareModel.userData.baseY !== undefined) hachiwareModel.position.y = hachiwareModel.userData.baseY + Math.abs(Math.sin(time)) * jumpHeight;
+            if (usagiModel && tableGroup && chiikawaModel && stoolModel) {
+                flipTimer++;
+                const uGroundY = usagiModel.userData?.groundY || 0.02;
+                const uTableY = usagiModel.userData?.tableY || 1.15;
+                const stoolHeight = 0.45; 
 
-                // Tạo hiệu ứng Chiikawa nhún nhảy khi bước đi
-                chiikawaModel.position.y = 0.77 + Math.abs(Math.sin(flipTimer * 0.3)) * 0.05;
+                const stoolStartX = -2.5, stoolStartZ = 4.5;
+                const stoolEndX = 0, stoolEndZ = 2.1; 
+                const chiikawaStartX = -2.5, chiikawaStartZ = 4.9; 
+                const chiikawaEndX = 0, chiikawaEndZ = 2.5; 
 
-                // Usagi nhún nhảy tại chỗ chờ đợi
-                usagiModel.position.y = uGroundY + Math.abs(Math.sin(flipTimer * 0.2)) * 0.05;
-                usagiModel.position.z = 1.8;
-                usagiModel.rotation.x = 0;
-                
-            } else if (flipTimer < 160) {
-                // GIAI ĐOẠN 2 (120 -> 160): Usagi nhảy phóc lên ghế đẩu
-                const jump = (flipTimer - 120) / 40;
-                const arc = Math.sin(jump * Math.PI) * 0.5; // Quỹ đạo vòng cung
-                
-                usagiModel.position.y = uGroundY + arc + (jump * stoolHeight);
-                usagiModel.position.z = 1.5; 
-                
-                // Chiikawa dừng lại và đứng xem
-                chiikawaModel.position.y = 0.77;
+                if (flipTimer < 120) {
+                    const progress = flipTimer / 120;
+                    stoolModel.position.x = stoolStartX + (stoolEndX - stoolStartX) * progress;
+                    stoolModel.position.z = stoolStartZ + (stoolEndZ - stoolStartZ) * progress;
+                    chiikawaModel.position.x = chiikawaStartX + (chiikawaEndX - chiikawaStartX) * progress;
+                    chiikawaModel.position.z = chiikawaStartZ + (chiikawaEndZ - chiikawaStartZ) * progress;
+                    chiikawaModel.rotation.y = Math.atan2(stoolEndX - stoolStartX, stoolEndZ - stoolStartZ);
+                    chiikawaModel.position.y = 0.77 + Math.abs(Math.sin(flipTimer * 0.3)) * 0.05;
 
-            } else if (flipTimer < 200) {
-                // GIAI ĐOẠN 3 (160 -> 200): Usagi lấy đà nhảy từ ghế đẩu lên mặt bàn
-                const jump = (flipTimer - 160) / 40;
-                const startY = uGroundY + stoolHeight;
-                
-                // --- BIẾN TINH CHỈNH ĐỘ CAO TIẾP ĐẤT ---
-                // Nếu Usagi vẫn hơi lơ lửng, sếp giảm số 0.05 xuống (ví dụ 0.02). 
-                // Nếu bị lún chân, sếp tăng số 0.05 lên (ví dụ 0.08).
-                const targetTableY = uTableY;
-                
-                const heightDiff = targetTableY - startY;
-                const arc = Math.sin(jump * Math.PI) * 0.4;
-                
-                usagiModel.position.y = startY + arc + (jump * heightDiff); 
-                usagiModel.position.z = 1.5 - (jump * 0.9); 
-                usagiModel.rotation.x = -Math.PI / 12 * jump; // Hơi chúi người về trước tạo đà khi bay
+                    usagiModel.position.y = uGroundY + Math.abs(Math.sin(flipTimer * 0.2)) * 0.05;
+                    usagiModel.position.z = 1.8; usagiModel.rotation.x = 0;
+                    
+                } else if (flipTimer < 160) {
+                    const jump = (flipTimer - 120) / 40;
+                    usagiModel.position.y = uGroundY + Math.sin(jump * Math.PI) * 0.5 + (jump * stoolHeight);
+                    usagiModel.position.z = 1.5; 
+                    chiikawaModel.position.y = 0.77;
 
-            } else if (flipTimer < 240) {
-                // GIAI ĐOẠN 4 (200 -> 240): Usagi đáp đất và ngồi xổm tụ lực trên bàn
-                const targetTableY = uTableY + 0.05; // Dùng chung mốc chiều cao tiếp đất
-                
-                usagiModel.position.x = 0; 
-                usagiModel.position.y = targetTableY; // Ép tọa độ Y đứng đúng mặt bàn
-                usagiModel.position.z = 0.9 + Math.sin(flipTimer * 0.5) * 0.02; // Rung rinh tay
-                
-                // QUAN TRỌNG: Trả thẳng người lại để 2 bàn chân áp phẳng xuống mặt bàn
-                usagiModel.rotation.x = 0; 
+                } else if (flipTimer < 200) {
+                    const jump = (flipTimer - 160) / 40;
+                    const startY = uGroundY + stoolHeight;
+                    const targetTableY = uTableY + 0.05;
+                    
+                    usagiModel.position.y = startY + Math.sin(jump * Math.PI) * 0.4 + (jump * (targetTableY - startY)); 
+                    usagiModel.position.z = 1.5 - (jump * 0.9); 
+                    usagiModel.rotation.x = -Math.PI / 12 * jump; 
 
-            } else if (flipTimer < 270) {
-                // GIAI ĐOẠN 5 (240 -> 270): LẬT BÀN VÀ VĂNG RA SAU
-                const targetTableY = uTableY + 0.05;
-                const progress = (flipTimer - 240) / 30;
-                
-                tableGroup.rotation.x = progress * Math.PI / 4;
-                usagiModel.rotation.x = (-Math.PI / 8 - (progress * Math.PI / 2)) + 1;
+                } else if (flipTimer < 240) {
+                    usagiModel.position.x = 0; 
+                    usagiModel.position.y = uTableY + 0.05; 
+                    usagiModel.position.z = 0.9 + Math.sin(flipTimer * 0.5) * 0.02; 
+                    usagiModel.rotation.x = 0; 
 
-                usagiModel.position.y = targetTableY - progress * (targetTableY - uGroundY);
-                usagiModel.position.z = 0.9 + (progress * 1.0);
-                
-                // Nổ lực văng bi
-                if (flipTimer === 240) {
+                } else if (flipTimer < 270) {
+                    const targetTableY = uTableY + 0.05;
+                    const progress = (flipTimer - 240) / 30;
+                    tableGroup.rotation.x = progress * Math.PI / 4;
+                    usagiModel.rotation.x = (-Math.PI / 8 - (progress * Math.PI / 2)) + 1;
+                    usagiModel.position.y = targetTableY - progress * (targetTableY - uGroundY);
+                    usagiModel.position.z = 0.9 + (progress * 1.0);
+                    
+                    if (flipTimer === 240) {
+                        customBalls.forEach(ball => {
+                            ball.userData.velocity.set((Math.random() - 0.5) * 0.05, 0.08 + Math.random() * 0.05, 0.05 + Math.random() * 0.05);
+                        });
+                    }
+                } else if (flipTimer >= 700) {
+                    flipTimer = 0; tableGroup.rotation.x = 0;
+                    usagiModel.rotation.set(0, -2 * Math.PI, 0); usagiModel.position.set(0, uGroundY, 1.8); 
+                    stoolModel.position.set(-2.5, 0, 4.5); 
+                    chiikawaModel.position.set(-2.5, 0.77, 4.9); 
+                    resetBalls();
+                }
+
+                if (flipTimer > 240 && flipTimer < 700) {
                     customBalls.forEach(ball => {
-                        ball.userData.velocity.set(
-                            (Math.random() - 0.5) * 0.05, 
-                            0.08 + Math.random() * 0.05,  
-                            0.05 + Math.random() * 0.05   
-                        );
+                        ball.userData.velocity.y -= 0.003; 
+                        ball.position.add(ball.userData.velocity);
+                        const radius = 0.04, ceilingHeight = 2.5 - radius, boundX = 3.0 - radius, boundZ = 5.0 - radius; 
+
+                        if (ball.position.y <= radius) { 
+                            ball.position.y = radius; ball.userData.velocity.y *= -0.65; ball.userData.velocity.x *= 0.98;  ball.userData.velocity.z *= 0.98;
+                        } else if (ball.position.y >= ceilingHeight) { 
+                            ball.position.y = ceilingHeight; ball.userData.velocity.y *= -0.65; 
+                        }
+                        if (ball.position.x < -boundX) { ball.position.x = -boundX; ball.userData.velocity.x *= -0.8; } 
+                        else if (ball.position.x > boundX) { ball.position.x = boundX; ball.userData.velocity.x *= -0.8; }
+                        
+                        if (ball.position.z < -boundZ) { ball.position.z = -boundZ; ball.userData.velocity.z *= -0.8; } 
+                        else if (ball.position.z > boundZ) { ball.position.z = boundZ; ball.userData.velocity.z *= -0.8; }
                     });
                 }
-            } else if (flipTimer >= 700) {
-                // GIAI ĐOẠN 6: TRẢ MỌI THỨ VỀ VỊ TRÍ BAN ĐẦU
-                flipTimer = 0;
-                tableGroup.rotation.x = 0;
+            }
+
+            // --- 2. CÁ MẬP BƠI DỌC THÀNH BỂ (BÊN TRÁI) ---
+            if (sharkModel) {
+                const st = Date.now() * 0.00035; // Tốc độ bơi
+                const rz = 7.2; // Quãng đường bơi dọc theo chiều dài bể
+                const cz = 0.8; // Tâm Z của bể
+                // ĐỔI TỌA ĐỘ X: Đặt X = -1.0 để cá bơi sát vách tường bên kia (tránh khu vực bậc thang)
+                const sx = 1.0; 
+                // Tính toán tiến lùi trục Z
+                const sz = cz + Math.sin(st) * rz;
+                const nz = cz + Math.sin(st + 0.06) * rz;
                 
-                usagiModel.rotation.set(0, -2 * Math.PI, 0); 
-                usagiModel.position.set(0, uGroundY, 1.8); 
+                // Cập nhật vị trí cá
+                sharkModel.position.set(sx, -0.4, sz); 
                 
-                stoolModel.position.set(-2.5, 0, 4.5); // Trả ghế về góc
-                chiikawaModel.position.set(-2.5, 0.77, 4.9); // Trả Chiikawa về sau ghế
-                
-                resetBalls();
+                // Cập nhật góc quay để cá tự động quay đầu khi chạm mút đường bơi
+                const angle = Math.atan2(0, nz - sz);
+                sharkModel.rotation.set(0, angle + Math.sin(st * 10) * 0.08, 0);
             }
 
-            // --- VẬT LÝ CỦA CÁC VIÊN BI (Chạy độc lập sau khi hất bàn) ---
-            if (flipTimer > 240 && flipTimer < 700) {
-                customBalls.forEach(ball => {
-                    ball.userData.velocity.y -= 0.003; 
-                    ball.position.add(ball.userData.velocity);
-
-                    const radius = 0.04;
-                    const ceilingHeight = 2.5 - radius; 
-
-                    // Va chạm Y (Sàn và Trần)
-                    if (ball.position.y <= radius) { 
-                        ball.position.y = radius; 
-                        ball.userData.velocity.y *= -0.65; 
-                        ball.userData.velocity.x *= 0.98;  
-                        ball.userData.velocity.z *= 0.98;
-                    } else if (ball.position.y >= ceilingHeight) { 
-                        ball.position.y = ceilingHeight;
-                        ball.userData.velocity.y *= -0.65; 
-                    }
-
-                    // Va chạm X, Z (Bức tường phòng Bi-a)
-                    const boundX = 3.0 - radius; 
-                    const boundZ = 5.0 - radius; 
-
-                    if (ball.position.x < -boundX) {
-                        ball.position.x = -boundX; ball.userData.velocity.x *= -0.8; 
-                    } else if (ball.position.x > boundX) {
-                        ball.position.x = boundX; ball.userData.velocity.x *= -0.8;
-                    }
-                    if (ball.position.z < -boundZ) {
-                        ball.position.z = -boundZ; ball.userData.velocity.z *= -0.8;
-                    } else if (ball.position.z > boundZ) {
-                        ball.position.z = boundZ; ball.userData.velocity.z *= -0.8;
-                    }
-                });
-            }
-        }
-        // --- 1. HIỆU ỨNG SÓNG NƯỚC THẬT (biến dạng đỉnh theo hình sin) ---
-        if (poolWater && waterOrigPositions) {
-            const wt = Date.now() * 0.0015;
-            const pos = poolWater.geometry.attributes.position.array;
-            for (let i = 0; i < pos.length; i += 3) {
-                const ox = waterOrigPositions[i];
-                const oz = waterOrigPositions[i + 2];
-                pos[i + 1] = Math.sin(ox * 1.2 + wt) * 0.04
-                           + Math.sin(oz * 0.8 + wt * 1.3) * 0.03
-                           + Math.sin((ox + oz) * 0.6 + wt * 0.9) * 0.02;
-            }
-            poolWater.geometry.attributes.position.needsUpdate = true;
-            poolWater.geometry.computeVertexNormals();
-            poolWater.material.opacity = 0.70 + Math.sin(wt * 2) * 0.05;
-        }
-
-        // --- 2. CÁ MẬP BƠI VÒNG QUANH BỂ (ellipse ôm sát hình bể) ---
-        if (sharkModel) {
-            const st = Date.now() * 0.00035;
-            const rx = 1.55, rz = 7.2;
-            const cx = 0.5, cz = 0.8;
-            const sa = st, na = st + 0.06;
-            const sx = cx + Math.cos(sa) * rx;
-            const sz = cz + Math.sin(sa) * rz;
-            const nx = cx + Math.cos(na) * rx;
-            const nz = cz + Math.sin(na) * rz;
-            
-            // Đặt Y = -0.4 để cá mập to bơi sát mặt nước
-            sharkModel.position.set(sx, -0.4, sz); 
-            const angle = Math.atan2(nx - sx, nz - sz);
-            sharkModel.rotation.set(0, angle + Math.sin(st * 10) * 0.08, 0);
-        }
-
-        // --- 3. HẠT NƯỚC BẮN LÊN ---
-        splashParticles.forEach(drop => {
-            if (drop.userData.active) {
-                drop.userData.vy -= 0.015;
-                drop.position.x += drop.userData.vx;
-                drop.position.y += drop.userData.vy;
-                drop.position.z += drop.userData.vz;
-                drop.material.opacity -= 0.018;
-                if (drop.material.opacity <= 0) {
-                    drop.visible = false;
-                    drop.userData.active = false;
-                }
-            }
-        });
-        // --- HIỆU ỨNG SÓNG NƯỚC LẤP LÁNH ---
-if (poolWater) {
-    const time = Date.now() * 0.002;
-    // Làm cho bề mặt nước nhấp nhô nhẹ theo hàm sin
-    poolWater.position.y = -0.5 + Math.sin(time) * 0.02; 
-    
-    // Tạo hiệu ứng lấp lánh bằng cách thay đổi độ trong suốt nhẹ nhàng
-    poolWater.material.opacity = 0.8 + Math.sin(time * 2) * 0.05;
-}
             renderer.render(scene, camera);
         }
         animate();
 
-        // Tự động căn chỉnh khi co giãn trình duyệt
-        window.addEventListener('resize', onWindowResize, false);
-        function onWindowResize() {
+        // XU LY SU KIEN GIAO DIEN
+        window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-        document.getElementById('btn-overview').addEventListener('click', function() {
-            targetView = cameraViews.overview;
-            isTransitioning = true; // Bật chế độ bay
         });
 
-        document.getElementById('btn-billiard').addEventListener('click', function() {
-            targetView = cameraViews.billiardRoom;
-            isTransitioning = true; // Bật chế độ bay
-        });
+        document.getElementById('btn-overview').addEventListener('click', () => { targetView = cameraViews.overview; isTransitioning = true; });
+        document.getElementById('btn-billiard').addEventListener('click', () => { targetView = cameraViews.billiardRoom; isTransitioning = true; });
+        document.getElementById('btn-LivingRoom').addEventListener('click', () => { targetView = cameraViews.LivingRoom; isTransitioning = true; });
+        document.getElementById('btn-Pool').addEventListener('click', () => { targetView = cameraViews.Pool; isTransitioning = true; });
+        controls.addEventListener('start', () => { isTransitioning = false; });
 
-        document.getElementById('btn-LivingRoom').addEventListener('click', function() {
-            targetView = cameraViews.LivingRoom;
-            isTransitioning = true; // Bật chế độ bay
-        });
-
-        // Lệnh giúp nút bể bơi hoạt động
-        document.getElementById('btn-Pool').addEventListener('click', function() {
-            targetView = cameraViews.Pool;
-            isTransitioning = true; // Bật chế độ bay xuống tầng hầm
-        });
-
-        controls.addEventListener('start', function() {
-            isTransitioning = false; 
-        });
     </script>
 </body>
 </html>
-
