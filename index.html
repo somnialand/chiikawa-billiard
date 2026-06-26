@@ -11,6 +11,46 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: Arial, sans-serif;
         }
         .control-btn { display: block; width: 100%; margin-bottom: 8px; padding: 8px 12px; background-color: #9b2242; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        /* --- CSS CHO BẢNG ĐIỀU KHIỂN ÁNH SÁNG --- */
+        .light-control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px; /* Đặt bên phải màn hình cho đỡ vướng */
+            z-index: 100;
+            background: rgba(25, 25, 25, 0.85); /* Nền tối ngầu hơn */
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            font-family: Arial, sans-serif;
+            width: 220px;
+        }
+        .light-control-panel h3 {
+            margin: 0 0 15px 0;
+            font-size: 15px;
+            color: #ffcc00; /* Tiêu đề màu vàng */
+            text-align: center;
+            border-bottom: 1px solid #555;
+            padding-bottom: 10px;
+        }
+        .light-control-panel label {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .light-control-panel input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+            cursor: pointer;
+        }
+        .light-control-panel input[type="color"] {
+            width: 100%;
+            height: 35px;
+            border: none;
+            margin-top: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
     </style>
     <script type="importmap">
       { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
@@ -24,6 +64,24 @@
         <button class="control-btn" id="btn-billiard">Phòng Bi-a</button>
         <button class="control-btn" id="btn-LivingRoom">Phòng Khách</button>
         <button class="control-btn" id="btn-Pool">Bể bơi</button>
+    </div>
+    <div class="light-control-panel">
+        <h3>💡 ĐIỀU CHỈNH ÁNH SÁNG</h3>
+        <label>🎨 Màu ánh sáng: 
+            <input type="color" id="lightColor" value="#ffffff">
+        </label>
+        <label>☀️ Cường độ: <span id="valIntensity">2.0</span>
+            <input type="range" id="lightIntensity" min="0" max="10" step="0.1" value="2.0">
+        </label>
+        <label>⬅️ Trục X (Trái/Phải): <span id="valX">5.0</span>
+            <input type="range" id="lightX" min="-20" max="20" step="0.5" value="5">
+        </label>
+        <label>⬆️ Trục Y (Cao/Thấp): <span id="valY">8.0</span>
+            <input type="range" id="lightY" min="0" max="30" step="0.5" value="8">
+        </label>
+        <label>↙️ Trục Z (Sâu/Nông): <span id="valZ">5.0</span>
+            <input type="range" id="lightZ" min="-20" max="20" step="0.5" value="5">
+        </label>
     </div>
 
     <script type="module">
@@ -157,13 +215,71 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // 4. BẬT ĐÈN (Tăng cường độ sáng lên cho rõ nét)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+// =======================================================
+        // 4. BẬT ĐÈN & HỆ THỐNG ĐIỀU KHIỂN (UPDATE MỚI)
+        // =======================================================
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Giảm Ambient xuống chút để thấy rõ bóng của DirectionalLight
         scene.add(ambientLight);
         
+        // Tạo ánh sáng định hướng (như mặt trời)
         const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
         directionalLight.position.set(5, 8, 5);
+        
+        // Bật khả năng đổ bóng (Tùy chọn cho đồ họa đẹp hơn)
+        directionalLight.castShadow = true;
+        directionalLight.shadow.camera.left = -10;
+        directionalLight.shadow.camera.right = 10;
+        directionalLight.shadow.camera.top = 10;
+        directionalLight.shadow.camera.bottom = -10;
         scene.add(directionalLight);
+
+        // Tạo Helper (Khung vuông) để nhìn thấy vị trí bóng đèn đang ở đâu
+        const dLightHelper = new THREE.DirectionalLightHelper(directionalLight, 1);
+        scene.add(dLightHelper);
+
+        // --- KẾT NỐI UI HTML VỚI ĐÈN THREE.JS ---
+        const colorInput = document.getElementById('lightColor');
+        const intensityInput = document.getElementById('lightIntensity');
+        const xInput = document.getElementById('lightX');
+        const yInput = document.getElementById('lightY');
+        const zInput = document.getElementById('lightZ');
+
+        // Hàm cập nhật chữ số hiển thị
+        const valIntensity = document.getElementById('valIntensity');
+        const valX = document.getElementById('valX');
+        const valY = document.getElementById('valY');
+        const valZ = document.getElementById('valZ');
+
+        // Đổi màu
+        colorInput.addEventListener('input', (e) => {
+            directionalLight.color.set(e.target.value);
+            dLightHelper.update();
+        });
+
+        // Đổi cường độ sáng
+        intensityInput.addEventListener('input', (e) => {
+            directionalLight.intensity = parseFloat(e.target.value);
+            valIntensity.innerText = e.target.value;
+        });
+
+        // Đổi hướng chiếu (Thay đổi tọa độ X, Y, Z của đèn)
+        function updateLightPosition() {
+            const x = parseFloat(xInput.value);
+            const y = parseFloat(yInput.value);
+            const z = parseFloat(zInput.value);
+            
+            directionalLight.position.set(x, y, z);
+            dLightHelper.update(); // Cập nhật hình ảnh Helper
+            
+            valX.innerText = x;
+            valY.innerText = y;
+            valZ.innerText = z;
+        }
+
+        xInput.addEventListener('input', updateLightPosition);
+        yInput.addEventListener('input', updateLightPosition);
+        zInput.addEventListener('input', updateLightPosition);
+        // =======================================================
 
         // 5. THÊM TƯƠNG TÁC CHUỘT
         const controls = new OrbitControls(camera, renderer.domElement);
